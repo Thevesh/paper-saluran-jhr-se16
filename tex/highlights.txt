@@ -1,0 +1,7 @@
+Highlights — "Who moved? Ecological estimates of turnout and coalition support by ethnicity and age in Johor, Malaysia, 2022–2026"
+
+- Open, reproducible estimates of Malaysian voting by ethnicity and age
+- BN's 2026 Johor landslide was a near one-for-one Malay swing back from PN
+- Chinese voters demobilised rather than realigned; loyalty to PH held
+- BN's inverted age gradient is ethnic composition, not behaviour
+- Age-sorted polling streams give ecological inference real held-out ground truth

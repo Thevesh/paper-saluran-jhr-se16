@@ -1,0 +1,14 @@
+[project]
+name = "paper-saluran-jhr-se16"
+version = "0.1.0"
+description = "Ecological-inference estimates of turnout and coalition support by ethnicity and age, from saluran-level results of Johor's 16th state election (2026)."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "duckdb>=1.5.4",
+    "matplotlib>=3.11.0",
+    "openpyxl>=3.1.5",
+    "pandas>=3.0.3",
+    "pyarrow>=25.0.0",
+    "scipy>=1.18.0",
+]
