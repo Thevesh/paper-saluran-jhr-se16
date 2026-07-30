@@ -23,5 +23,4 @@ the panel from the voter roll, and the eiPack benchmark), which are skipped by d
 `estimates/README.md` for what each stage does.
 
 LaTeX builds go to `tex/out/`, which is gitignored. The tracked PDF at `tex/manuscript-r0.pdf`
-is moved there by hand, whenever a version is worth committing — so it will usually lag the
-source, and that is deliberate.
+is deliberately moved there by hand, whenever a version is worth committing.

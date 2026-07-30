@@ -41,17 +41,21 @@ def shade(rate, text):
     unvalidated point estimates sit on plain white and draw no emphasis."""
     r, g, b, _ = BLUES(max(0.0, min(1.0, float(rate))))
     hexc = f"{round(255*r):02X}{round(255*g):02X}{round(255*b):02X}"
-    if rate >= 0.5:                 # white text = majority, a semantic cue not a luminance one
+    if rate >= 0.5:  # white text = majority, a semantic cue not a luminance one
         text = f"\\textcolor{{white}}{{{text}}}"
     return f"\\cellcolor[HTML]{{{hexc}}}{text}"
+
 
 TEX = os.path.join(common.REPO, "tex")
 OUT = common.OUT
 ELS = [("jhr_se15", "SE-15"), ("ge15", "GE-15"), ("jhr_se16", "SE-16")]
 GROUPS = common.ETH + common.AGE
 
-VERR = (pd.read_csv(f"{common.OUT}/validation_errors.csv")
-          .set_index(["election", "group", "estimand"]).err.to_dict())
+VERR = (
+    pd.read_csv(f"{common.OUT}/validation_errors.csv")
+    .set_index(["election", "group", "estimand"])
+    .err.to_dict()
+)
 
 
 def cell(rate, el, grp, est):
@@ -73,8 +77,9 @@ def results_table():
         return cell(r.rate, el, grp, est)
 
     def s(el, grp, party):
-        r = scaled[(scaled.election == el) & (scaled.group == grp)
-                   & (scaled.party == party)].iloc[0]
+        r = scaled[(scaled.election == el) & (scaled.group == grp) & (scaled.party == party)].iloc[
+            0
+        ]
         return cell(r.share_of_voters, el, grp, f"{party}_v")
 
     lines = []
@@ -84,12 +89,13 @@ def results_table():
         label = grp.replace("-", "--")
         for j, (el, short) in enumerate(ELS):
             head = f"\\multirow{{3}}{{*}}{{\\textbf{{{label}}}}}" if j == 0 else ""
-            row = [m(el, grp, e) for e in ["turnout", "BN", "PH", "PN"]] + \
-                  [s(el, grp, p) for p in ["BN", "PH", "PN"]]
+            row = [m(el, grp, e) for e in ["turnout", "BN", "PH", "PN"]] + [
+                s(el, grp, p) for p in ["BN", "PH", "PN"]
+            ]
             lines.append(f"{head} & {short} & " + " & ".join(row) + " \\\\")
         lines.append("\\addlinespace[2pt]")
 
-    caption = ("Turnout and coalition support in Johor, 2022--2026, by ethnicity and age")
+    caption = "Turnout and coalition support in Johor, 2022--2026, by ethnicity and age"
     body = "\n".join(lines)
     out = f"""\\begin{{table}}[!htb]
 \\caption{{{caption}}}
@@ -128,14 +134,16 @@ def crosstab_table():
     for est, name in [("turnout", "Turnout"), ("BN", "BN"), ("PH", "PH"), ("PN", "PN")]:
         # every panel is on ONE scale -- the cell's registered electorate -- unlike
         # tab_malay, whose party panels are ballot shares; the label says so
-        label = f"{name} (\\% of cell's electorate)"
-        blocks.append(f"\\multicolumn{{{len(common.AGE) + 1}}}{{l}}{{\\textit{{{label}}}}}\\\\[1pt]")
+        label = f"{name} (\\% of electorate)"
+        blocks.append(
+            f"\\multicolumn{{{len(common.AGE) + 1}}}{{l}}{{\\textit{{{label}}}}}\\\\[1pt]"
+        )
         for eth in common.ETH:
             row = " & ".join(c(eth, a, est) for a in common.AGE)
             blocks.append(f"\\quad {eth} & {row} \\\\")
         blocks.append("\\addlinespace[3pt]")
 
-    caption = ("The joint ethnicity-by-age crosstab, SE-16")
+    caption = "The joint ethnicity-by-age crosstab, SE-16"
     head = " & " + " & ".join(a.replace("-", "--") for a in common.AGE) + " \\\\"
     body = "\n".join(blocks)
     out = f"""\\begin{{table}}[!htb]
@@ -175,12 +183,12 @@ def errors_table():
                 v = E.err.get((el, grp, c))
                 if v is None or not np.isfinite(v):
                     row.append("---")
-                else:                       # never print 0.00; the measurement is not exact
+                else:  # never print 0.00; the measurement is not exact
                     row.append(f"{100 * v:.2f}" if 100 * v >= 0.005 else "$<$0.01")
             lines.append(f"{head} & {short} & " + " & ".join(row) + " \\\\")
         lines.append("\\addlinespace[2pt]")
 
-    caption = ("Held-out validation error by group, election and estimand, in percentage points")
+    caption = "Held-out validation error by group, election and estimand, in percentage points"
     body = "\n".join(lines)
     out = f"""\\begin{{table}}[!htb]
 \\caption{{{caption}}}
@@ -225,8 +233,9 @@ def bounds_table():
             lines.append(f"{head} & {short} & " + " & ".join(cells) + " \\\\")
         lines.append("\\addlinespace[2pt]")
 
-    caption = ("The deterministic accounting bounds, statewide: every estimate must "
-               "lie inside them")
+    caption = (
+        "The deterministic accounting bounds, statewide: every estimate must " "lie inside them"
+    )
     body = "\n".join(lines)
     out = f"""\\begin{{table}}[!htb]
 \\caption{{{caption}}}
@@ -258,27 +267,27 @@ def m1_table():
     for grp in common.ETH:
         for j, (el, short) in enumerate(ELS):
             mv = pd.read_csv(f"{OUT}/{el}/model_vs_bounds.csv")
-            mv = mv[(mv.model == "M1_lpm") & (mv.dim == "ethnicity")
-                    & (mv.group == grp)].set_index("estimand")
+            mv = mv[(mv.model == "M1_lpm") & (mv.dim == "ethnicity") & (mv.group == grp)].set_index(
+                "estimand"
+            )
             head = f"\\multirow{{3}}{{*}}{{\\textbf{{{grp}}}}}" if not j else ""
 
             def fmt(val, violates):
                 txt = f"{100 * val:.1f}".replace("-", "$-$")
                 return f"\\textcolor{{red}}{{{txt}}}" if violates else txt
 
-            cells = [fmt(mv.loc[e].estimate, mv.loc[e].violates)
-                     for e in ["turnout", "BN", "PH", "PN"]]
+            cells = [
+                fmt(mv.loc[e].estimate, mv.loc[e].violates) for e in ["turnout", "BN", "PH", "PN"]
+            ]
             # ballot scale: the same estimates divided by the group's M1 turnout --
             # the numbers informal breakdowns usually report. A dagger carries over
             # from the electorate-scale cell it is a rescaling of.
             t = mv.loc["turnout"].estimate
-            cells += [fmt(mv.loc[e].estimate / t, mv.loc[e].violates)
-                      for e in ["BN", "PH", "PN"]]
+            cells += [fmt(mv.loc[e].estimate / t, mv.loc[e].violates) for e in ["BN", "PH", "PN"]]
             lines.append(f"{head} & {short} & " + " & ".join(cells) + " \\\\")
         lines.append("\\addlinespace[2pt]")
 
-    caption = ("Goodman regression (M1) by ethnicity: the constant-rate estimates, "
-               "as fitted")
+    caption = "Goodman regression (M1) by ethnicity: the constant-rate estimates, " "as fitted"
     body = "\n".join(lines)
     out = f"""\\begin{{table}}[!htb]
 \\caption{{{caption}}}
@@ -326,10 +335,12 @@ def malay_crosstab_table():
         return shade(v, f"{100 * v:.1f}\\,{{\\tiny$\\pm$}}{100 * e:.1f}")
 
     blocks = []
-    panels = [("turnout", "Turnout (\\% of Malay electorate)"),
-              ("BN", "BN (\\% of Malay ballots)"),
-              ("PN", "PN (\\% of Malay ballots)"),
-              ("PH", "PH (\\% of Malay ballots)")]
+    panels = [
+        ("turnout", "Turnout (\\% of Malay electorate)"),
+        ("BN", "BN (\\% of Malay ballots)"),
+        ("PN", "PN (\\% of Malay ballots)"),
+        ("PH", "PH (\\% of Malay ballots)"),
+    ]
     for est, name in panels:
         blocks.append(f"\\multicolumn{{{len(common.AGE) + 1}}}{{l}}{{\\textit{{{name}}}}}\\\\[1pt]")
         for el, short in ELS:
@@ -337,7 +348,7 @@ def malay_crosstab_table():
             blocks.append(f"\\quad {short} & " + " & ".join(cells) + " \\\\")
         blocks.append("\\addlinespace[3pt]")
 
-    caption = ("The Malay reversal by age band, across the three elections")
+    caption = "The Malay reversal by age band, across the three elections"
     head = " & " + " & ".join(a.replace("-", "--") for a in common.AGE) + " \\\\"
     body = "\n".join(blocks)
     out = f"""\\begin{{table}}[!htb]
@@ -365,36 +376,46 @@ def movements():
 
     def rate(el, grp, est):
         if est.endswith("_v"):
-            r = scaled[(scaled.election == el) & (scaled.group == grp)
-                       & (scaled.party == est[:-2])]
+            r = scaled[(scaled.election == el) & (scaled.group == grp) & (scaled.party == est[:-2])]
             return float(r.share_of_voters.iloc[0])
         r = marg[(marg.election == el) & (marg.group == grp) & (marg.estimand == est)]
         return float(r.rate.iloc[0])
 
     print("Between-election movements against the conservative combined error\n")
-    print(f"{'group':8} {'estimand':9} {'from':6} {'to':6} {'move':>7} {'E_sum':>7} "
-          f"{'ratio':>6} {'E_rss':>7}")
-    claims = [("Malay", "BN", "ge15", "jhr_se16"), ("Malay", "PN", "ge15", "jhr_se16"),
-              ("Malay", "BN_v", "ge15", "jhr_se16"), ("Malay", "PN_v", "ge15", "jhr_se16"),
-              ("Malay", "turnout", "ge15", "jhr_se16"),
-              ("Chinese", "PH", "ge15", "jhr_se16"), ("Chinese", "BN", "ge15", "jhr_se16"),
-              ("Chinese", "turnout", "ge15", "jhr_se16"),
-              ("Chinese", "PH_v", "ge15", "jhr_se16"),
-              ("Malay", "PN", "jhr_se15", "ge15"), ("Malay", "BN", "jhr_se15", "ge15")]
+    print(
+        f"{'group':8} {'estimand':9} {'from':6} {'to':6} {'move':>7} {'E_sum':>7} "
+        f"{'ratio':>6} {'E_rss':>7}"
+    )
+    claims = [
+        ("Malay", "BN", "ge15", "jhr_se16"),
+        ("Malay", "PN", "ge15", "jhr_se16"),
+        ("Malay", "BN_v", "ge15", "jhr_se16"),
+        ("Malay", "PN_v", "ge15", "jhr_se16"),
+        ("Malay", "turnout", "ge15", "jhr_se16"),
+        ("Chinese", "PH", "ge15", "jhr_se16"),
+        ("Chinese", "BN", "ge15", "jhr_se16"),
+        ("Chinese", "turnout", "ge15", "jhr_se16"),
+        ("Chinese", "PH_v", "ge15", "jhr_se16"),
+        ("Malay", "PN", "jhr_se15", "ge15"),
+        ("Malay", "BN", "jhr_se15", "ge15"),
+    ]
     for grp, est, a, b in claims:
         mv = 100 * (rate(b, grp, est) - rate(a, grp, est))
         ea, eb = 100 * E.err.get((a, grp, est), np.nan), 100 * E.err.get((b, grp, est), np.nan)
-        s, q = ea + eb, np.sqrt(ea ** 2 + eb ** 2)
-        print(f"{grp:8} {est:9} {common.cfg(a)['short']:6} {common.cfg(b)['short']:6} "
-              f"{mv:7.1f} {s:7.2f} {abs(mv) / s:6.1f} {q:7.2f}")
+        s, q = ea + eb, np.sqrt(ea**2 + eb**2)
+        print(
+            f"{grp:8} {est:9} {common.cfg(a)['short']:6} {common.cfg(b)['short']:6} "
+            f"{mv:7.1f} {s:7.2f} {abs(mv) / s:6.1f} {q:7.2f}"
+        )
 
     print("\nWithin SE-16 turnout contrasts (conservative sum of the two bands' errors)")
     for a, b in [("60-69", "30-39"), ("60-69", "70+"), ("60-69", "18-29")]:
         mv = 100 * (rate("jhr_se16", a, "turnout") - rate("jhr_se16", b, "turnout"))
-        s = 100 * (E.err.get(("jhr_se16", a, "turnout"), np.nan)
-                   + E.err.get(("jhr_se16", b, "turnout"), np.nan))
+        s = 100 * (
+            E.err.get(("jhr_se16", a, "turnout"), np.nan)
+            + E.err.get(("jhr_se16", b, "turnout"), np.nan)
+        )
         print(f"  {a} vs {b}: {mv:.1f}pp against {s:.2f} (ratio {abs(mv) / s:.1f})")
-
 
 
 if __name__ == "__main__":
