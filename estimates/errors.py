@@ -76,6 +76,7 @@ from common import DIMS, ESTIMAND_NAMES
 
 import groundtruth as gt
 import joint as jm
+import reconcile as rec
 import holdout as hold
 
 OUT = common.OUT
@@ -87,14 +88,15 @@ SCALED = [f"{p}_v" for p in common.PARTIES]
 ALL_ESTIMANDS = ESTIMAND_NAMES + SCALED
 
 
-def stream_table(df, el, dim, keep_groups):
+def stream_table(df, el, dim, keep_groups, thr=None):
     """Per-saluran ingredients of the holdout, for every group with a pure stratum."""
-    pure, mixed, arg = hold.design_masks(df, dim, "A")
+    pure, mixed, arg = hold.design_masks(df, dim, "A", thr=thr or hold.THR)
     fit_df = df[mixed].reset_index(drop=True)
 
-    total, _ = jm.fit_joint(fit_df, el)
-    Nf = jm.jcounts(fit_df).sum(axis=0)
-    b = {e: jm.jrates(total, Nf, el, e) for e in ESTIMAND_NAMES}
+    per, _ = jm.fit_joint_tables(fit_df, el)
+    # each held-out stream predicted with its own seat's rates (rec.seat_rates)
+    R = rec.seat_rates(per, jm.jcounts(fit_df), fit_df.cluster.to_numpy(),
+                       df.cluster.to_numpy(), el)
 
     Njoint, V, N4 = jm.jcounts(df), df.V.to_numpy(float), common.counts(df, dim)
     out = {}
@@ -110,7 +112,7 @@ def stream_table(df, el, dim, keep_groups):
                  wt=np.maximum(w.sum(axis=1), 1e-9), group_electorate=N4[:, j].sum())
         for e in ESTIMAND_NAMES:
             t[f"Y_{e}"] = common.outcome(df, el, e)[m]
-            t[f"p_{e}"] = (w * b[e][idx]).sum(axis=1) / t["wt"]
+            t[f"p_{e}"] = (w * R[e][m][:, idx]).sum(axis=1) / t["wt"]
         out[g] = pd.DataFrame(t)
     return out
 
@@ -250,8 +252,7 @@ THRESHOLDS = [0.90, 0.95, 0.98]
 def misses_at(thr, elections):
     """Aggregate holdout miss per group x election x estimand at one purity threshold."""
     orig = hold.design_masks
-    hold.design_masks = hold.design_masks = lambda df, dim, design, t=thr: orig(
-        df, dim, design, thr=t)
+    hold.design_masks = lambda df, dim, design, thr=None, t=thr: orig(df, dim, design, thr=t)
     try:
         rows = []
         for el in elections:
@@ -291,19 +292,23 @@ def main():
     for el in els:
         df = jm.load_joint(el)
         for dim in DIMS:
-            keep = sorted({r["group"] for r in hold.holdout(df, el, dim, "A")})
-            for g, t in stream_table(df, el, dim, keep).items():
-                res += saluran_residuals(t, el, dim, g)
-                point = aggregate_miss(t)
-                draws = bootstrap(t, rng)
-                for e, d in draws.items():
-                    errs.append(dict(
-                        election=el, dim=dim, group=g, estimand=e,
-                        err=float(np.sqrt((d ** 2).mean())),
-                        point_miss=point.get(e, np.nan),
-                        boot_p90=float(np.quantile(d, 0.90)),
-                        n_pure=int(len(t)), n_dm=int(t.dm.nunique()),
-                        holdout_share=100 * t.N.sum() / t.group_electorate.iloc[0]))
+            # two tiers: the 0.95 bar wherever a group qualifies; FALLBACK_THR only otherwise
+            done = set()
+            for thr in (hold.THR, hold.FALLBACK_THR):
+                ok = {r["group"] for r in hold.holdout(df, el, dim, "A", thr=thr)} - done
+                done |= ok
+                for g, t in stream_table(df, el, dim, sorted(ok), thr=thr).items():
+                    res += saluran_residuals(t, el, dim, g)
+                    point = aggregate_miss(t)
+                    for e, d in bootstrap(t, rng).items():
+                        errs.append(dict(
+                            election=el, dim=dim, group=g, estimand=e,
+                            err=float(np.sqrt((d ** 2).mean())),
+                            point_miss=point.get(e, np.nan),
+                            boot_p90=float(np.quantile(d, 0.90)),
+                            n_pure=int(len(t)), n_dm=int(t.dm.nunique()),
+                            holdout_share=100 * t.N.sum() / t.group_electorate.iloc[0],
+                            thr=thr))
         print(f"  {el}: done")
 
     R = pd.concat(res, ignore_index=True)

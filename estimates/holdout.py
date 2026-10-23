@@ -52,6 +52,11 @@ THR = 0.95
 # cluster-based variance estimation (Cameron & Miller 2015) -- Chinese at 32-36 and the over-70s
 # at 19-29 -- and the text flags both as the least reliable of the reported bars.
 MIN_CLUSTERS = 10
+# A group that misses MIN_CLUSTERS at THR is tried again at FALLBACK_THR, and its bar is flagged
+# as measured there (ported from the Negeri Sembilan repo, where Chinese and over-70 strata span
+# only 3-8 districts at 0.95). A looser threshold widens the interval the margins permit, so these bars are
+# softer than the 0.95 ones; errors.py records which threshold each bar used.
+FALLBACK_THR = 0.90
 JOINT = jm.JOINT
 
 
@@ -67,20 +72,20 @@ def design_masks(df, dim, design, thr=THR):
     return pure, ~pure, arg
 
 
-def holdout(df, el, dim, design, keep_groups=None):
+def holdout(df, el, dim, design, keep_groups=None, thr=None):
     """Fit joint AND separate on the design's mixed set; predict its pure stratum."""
-    pure, mixed, arg = design_masks(df, dim, design)
+    pure, mixed, arg = design_masks(df, dim, design, thr=thr or THR)
     groups = DIMS[dim]
     fit_df = df[mixed].reset_index(drop=True)
 
-    total, _ = jm.fit_joint(fit_df, el)
-    Nf = jm.jcounts(fit_df).sum(axis=0)
-    b = {e: jm.jrates(total, Nf, el, e) for e in ESTIMAND_NAMES}
+    per, _ = jm.fit_joint_tables(fit_df, el)
+    # held-out streams are predicted with their own seat's rates (rec.seat_rates)
+    R = rec.seat_rates(per, jm.jcounts(fit_df), fit_df.cluster.to_numpy(), df.cluster.to_numpy(), el)
 
     sep_seed = rec.build_seed(fit_df, el, dim)
-    sep_tot, _ = rec.reconcile(fit_df, el, dim, sep_seed)
-    sep_N = common.counts(fit_df, dim).sum(axis=0)
-    sep = {e: rec.rates(sep_tot, sep_N, el, e) for e in ESTIMAND_NAMES}
+    _, sep_per = rec.reconcile(fit_df, el, dim, sep_seed)
+    Rs = rec.seat_rates(sep_per, common.counts(fit_df, dim), fit_df.cluster.to_numpy(),
+                        df.cluster.to_numpy(), el)
 
     Njoint, V, N4 = jm.jcounts(df), df.V.to_numpy(float), common.counts(df, dim)
     rows = []
@@ -99,8 +104,9 @@ def holdout(df, el, dim, design, keep_groups=None):
             Y = common.outcome(df, el, e)[m]
             lo = np.maximum(0.0, Y - (V[m] - N4[m, j])).sum() / N4[m, j].sum()
             hi = np.minimum(Y, N4[m, j]).sum() / N4[m, j].sum()
-            pj = float((wts * b[e][idx]).sum() / max(wts.sum(), 1e-9))
-            ps = float(sep[e][j])
+            wm = Njoint[m][:, idx]
+            pj = float((wm * R[e][m][:, idx]).sum() / max(wm.sum(), 1e-9))
+            ps = float((N4[m, j] * Rs[e][m, j]).sum() / max(N4[m, j].sum(), 1e-9))
             for model, p in [("joint", pj), ("separate", ps)]:
                 rows.append(dict(
                     election=el, dim=dim, design=design, group=g, estimand=e, model=model,

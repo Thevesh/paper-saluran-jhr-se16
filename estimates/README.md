@@ -25,16 +25,18 @@ saluran's composition and result already imply.
 From the repository root, one command reproduces every number, table and figure:
 
 ```bash
-python3 estimates.py                 # all but the two slow stages
+python3 estimates.py                 # all but the three slow stages
 python3 estimates.py --all           # including them
 python3 estimates.py --figures       # also regenerate tex/dataviz/
 python3 estimates.py --from joint    # resume partway
 python3 estimates.py --list          # show the stages
 ```
 
-Two stages are skipped unless `--all` is passed. `data.py` rebuilds the saluran panel from the
+Three stages are skipped unless `--all` is passed. `data.py` rebuilds the saluran panel from the
 external voter roll (~10 min; set `ROLL_DIR` in `common.py`). `benchmark.py` fits the eiPack
 hierarchical Bayesian comparison via `benchmark.R` (~1.5 h; needs R with eiPack installed).
+`benchmark_seine.R` fits the covariate-adjusted semiparametric comparison (needs R with `seine`,
+GitHub `CoryMcCartan/seine` at the revision recorded in the script header; inputs from `seine_input.py`).
 Everything else runs in a few minutes.
 
 Stages are plain modules and can be run alone. Each takes election keys and defaults to all
@@ -59,6 +61,11 @@ three, chronologically: `cd estimates && python3 joint.py jhr_se16`.
 | `kappa.py` | the bounded-heterogeneity frontier: what bounds-only reporting would cost |
 | `errors.py` | the reported error bars, and the purity-threshold sensitivity |
 | `benchmark.py` | the eiPack hierarchical Bayesian comparison (`benchmark.R`) |
+| `jointholdout.py` | direct validation of the 24 joint ethnicity-by-age cells against joint-pure streams |
+| `contrasts.py` | sharp transportation-LP bounds on the headline contrasts (the claim ladder) |
+| `robustness.py` | prior sweep, transportability probes, locality design C, joint-cell splits, censored-miss envelopes, threshold frontier |
+| `monotone.py` | monotone-EI identified sets (Elzayn et al. 2026) under sign restrictions; reads `robustness_split.csv` |
+| `seine_input.py` / `benchmark_seine.R` | covariate panels and the McCartan--Kuriwaki `seine` semiparametric comparison |
 | `tables.py` | writes `tex/tab_results`, `tab_crosstab`, `tab_errors` |
 | `workbook.py` | the per-election estimate workbooks in `output/` |
 | `report.py` | the HTML report in `output/` |

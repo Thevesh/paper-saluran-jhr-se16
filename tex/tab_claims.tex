@@ -1,0 +1,22 @@
+\begin{table}[!htb]
+\caption{The claim ladder: GE-15 to SE-16 movements as shares of the group's electorate, in percentage points}
+\label{tab:claims}
+\centering
+\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{l cc cc cc}
+\toprule
+ & \multicolumn{2}{c}{Margins only, statewide} & \multicolumn{2}{c}{Margins only, 33 PN seats} & \multicolumn{2}{c}{Point model} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+Movement & sharp bound & signed? & sharp bound & signed? & estimate & discrepancy \\
+\midrule
+Malay PN & [-33.9, -7.2] & yes & [-33.8, -6.7] & yes & -27.7 & 3.2 \\
+Malay BN & [-6.5, +55.6] & no & [-1.1, +48.0] & no & +27.6 & 7.1 \\
+Malay BN $-$ PN & [+0.7, +89.5] & yes & [+5.6, +81.8] & yes & +55.2 & 10.2 \\
+Malay turnout & [-39.1, +31.7] & no & [-31.0, +23.7] & no & -2.7 & 4.1 \\
+Chinese PH & [-64.3, +38.6] & no & [-67.3, +43.4] & no & -10.9 & 0.6 \\
+Chinese turnout & [-57.7, +44.3] & no & [-61.6, +49.1] & no & -8.0 & 3.8 \\
+Chinese BN & [-29.8, +49.2] & no & [-35.6, +54.3] & no & +2.3 & 0.5 \\
+\bottomrule
+\end{tabular}\par\vspace{3pt}
+{\footnotesize Sharp bounds solve the transportation problem in every saluran (Section~\ref{sec:strategy-ladder}); `signed' means the bound excludes zero. Discrepancy is the sum of the two elections' held-out scores (equation~\ref{eq:combine}).}
+\end{table}

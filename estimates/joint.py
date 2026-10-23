@@ -113,16 +113,23 @@ def jcounts(df):
     return df[JCOL].to_numpy(float)
 
 
-def fit_joint(df, el):
-    """Seed on 24 rows, then rake every saluran. Returns total 24 x C counts."""
-    X, V = jshares(df), df.V.to_numpy(float)
+# Rows -> ethnicity, so a LOCAL column's per-seat seed is fitted on the four ethnic shares
+ETH_MAP = np.array([[1.0 if e == g else 0.0 for g in ETH] for e, _ in JOINT])
+
+
+def fit_joint_tables(df, el, seed=None):
+    """Contest-aware seed on 24 rows, then rake every saluran. Returns the per-saluran
+    (n, 24, C) tables and the statewide seed summary."""
+    S, B = rec.seed_tables(df, el, jshares(df), M=ETH_MAP, seed=seed)
     CH = common.choices(el)
-    seed = np.zeros((len(JCOL), len(CH)))
-    for k, name in enumerate(CH):
-        seed[:, k], _ = models.fit_link(X, df[name].to_numpy(float), V, "logit")
-    N, Y = jcounts(df), df[CH].to_numpy(float)
-    per = rec.ipf(seed, N, Y)
-    return per.sum(axis=0), seed
+    return rec.ipf(S, jcounts(df), df[CH].to_numpy(float)), B
+
+
+def fit_joint(df, el):
+    """Seed on 24 rows, then rake every saluran. Returns total 24 x C counts and the
+    statewide seed summary (a planted truth for the identification simulations)."""
+    per, B = fit_joint_tables(df, el)
+    return per.sum(axis=0), B
 
 
 def jrates(total, N_tot, el, estimand):
@@ -154,16 +161,16 @@ def holdout(df, el, dim):
     groups = common.DIMS[dim]
     fit_df = df[~pure].reset_index(drop=True)
 
-    total, _ = fit_joint(fit_df, el)
-    Nf = jcounts(fit_df).sum(axis=0)
-    b = {e: jrates(total, Nf, el, e) for e in ESTIMAND_NAMES}      # 24 joint-cell rates
+    per, _ = fit_joint_tables(fit_df, el)
+    # held-out streams are predicted with their own seat's rates (rec.seat_rates)
+    R = rec.seat_rates(per, jcounts(fit_df), fit_df.cluster.to_numpy(), df.cluster.to_numpy(), el)      # 24 joint-cell rates
 
     # the separate-model comparator, fitted on the same mixed salurans
     Xs, Vs = common.shares(fit_df, dim), fit_df.V.to_numpy(float)
     sep_seed = rec.build_seed(fit_df, el, dim)
-    sep_tot, _ = rec.reconcile(fit_df, el, dim, sep_seed)
-    sep_N = common.counts(fit_df, dim).sum(axis=0)
-    sep = {e: rec.rates(sep_tot, sep_N, el, e) for e in ESTIMAND_NAMES}
+    _, sep_per = rec.reconcile(fit_df, el, dim, sep_seed)
+    Rs = rec.seat_rates(sep_per, common.counts(fit_df, dim), fit_df.cluster.to_numpy(),
+                        df.cluster.to_numpy(), el)
 
     Njoint = jcounts(df)
     V = df.V.to_numpy(float)
@@ -181,9 +188,10 @@ def holdout(df, el, dim):
             lo = np.maximum(0.0, Y - (V[m] - N4[m, j])).sum() / N4[m, j].sum()
             hi = np.minimum(Y, N4[m, j]).sum() / N4[m, j].sum()
             # JOINT: what should 70+ voters who are 86% Chinese do?
-            pj = float((wts * b[e][idx]).sum() / max(wts.sum(), 1e-9))
+            wm = Njoint[m][:, idx]
+            pj = float((wm * R[e][m][:, idx]).sum() / max(wm.sum(), 1e-9))
             # SEPARATE: what should the average 70+ voter do?
-            ps = float(sep[e][j])
+            ps = float((N4[m, j] * Rs[e][m, j]).sum() / max(N4[m, j].sum(), 1e-9))
             for model, p in [("joint", pj), ("separate", ps)]:
                 rows.append(dict(election=el, dim=dim, group=g, estimand=e, model=model,
                                  pred=p, truth_lo=lo, truth_hi=hi,
@@ -195,7 +203,7 @@ def holdout(df, el, dim):
 # ---------------------------------------------------------------- main
 def main():
     els = common.arg_elections()
-    est_rows, hold_rows = [], []
+    est_rows, hold_rows, cell_rows = [], [], []
 
     for el in els:
         df = load_joint(el)
@@ -208,6 +216,11 @@ def main():
                                      registered=int(N_tot[k]),
                                      rate=float(jrates(total, N_tot, el, est)[k]),
                                      share_of_electorate=N_tot[k] / N_tot.sum()))
+            # the full raked cell x choice counts, so any denominator (e.g. valid votes)
+            # can be formed downstream from the same fit
+            cell_rows.append(dict(election=el, eth=e, age=a, registered=float(N_tot[k]),
+                                  **{c: float(total[k, i])
+                                     for i, c in enumerate(common.choices(el))}))
         for dim in common.DIMS:
             hold_rows += holdout(df, el, dim)
         print(f"  {el}: joint model fitted, holdout done")
@@ -215,6 +228,7 @@ def main():
     J = pd.DataFrame(est_rows)
     H = pd.DataFrame(hold_rows)
     J.to_csv(f"{OUT}/joint_estimates.csv", index=False)
+    pd.DataFrame(cell_rows).fillna(0.0).to_csv(f"{OUT}/joint_cells.csv", index=False)
     H.to_csv(f"{OUT}/joint_holdout.csv", index=False)
 
     # ---- the test that matters

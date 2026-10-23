@@ -55,7 +55,7 @@ U_SD = 0.5       # logit-scale dun effect in world C
 
 def true_rates(df, el, dim):
     """A realistic G x C truth: the fitted seed, with rows normalised to sum to 1."""
-    seed = rec.build_seed(df, el, dim)
+    seed = rec.statewide_seed(df, el, dim)
     return seed / seed.sum(axis=1, keepdims=True)
 
 

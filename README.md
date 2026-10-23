@@ -18,8 +18,9 @@ python3 estimates.py --all --figures    # the whole pipeline, then every figure
 cd tex && latexmk -pdf -outdir=out manuscript-r0.tex
 ```
 
-`python3 estimates.py --list` shows the stages; `--all` includes the two slow ones (rebuilding
-the panel from the voter roll, and the eiPack benchmark), which are skipped by default. See
+`python3 estimates.py --list` shows the stages; `--all` includes the three slow ones (rebuilding
+the panel from the voter roll, the eiPack benchmark, and the `seine` covariate-adjusted
+benchmark in R), which are skipped by default. See
 `estimates/README.md` for what each stage does.
 
 LaTeX builds go to `tex/out/`, which is gitignored. The tracked PDF at `tex/manuscript-r0.pdf`

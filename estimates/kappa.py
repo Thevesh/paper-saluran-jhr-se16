@@ -32,6 +32,18 @@ Findings are reported as breakdown values: the smallest kappa at which the claim
 against the kappa actually measured.
 
 Outputs: out/kappa_frontier.csv, out/kappa_breakdown.csv, and a printed report.
+
+STATUS: EXPLORATORY, NOT REPORTED IN THE MANUSCRIPT. Two elements keep this from being an
+exact or measured frontier, and both are stated here so nobody mistakes it for one:
+  (1) the binomial slack s_i treats the realised finite-population rate as a draw around a
+      propensity, whereas the paper's estimand is the realised rate itself and its uncertainty
+      argument rejects sampling variation as the relevant source;
+  (2) kappa_measured takes the midpoint of a near-pure Frechet interval as the observed rate
+      and subtracts an approximate binomial variance -- the midpoint is not observed truth,
+      contamination remains interval-valued.
+Read every number as a sensitivity exercise conditional on Z_SLACK and the band shape. The
+formal replacements are bounded-contextual-effect partial identification (Jiang, King,
+Schmaltz & Tanner 2020) and monotone EI (Elzayn et al. 2026); the manuscript points to those.
 """
 
 import os

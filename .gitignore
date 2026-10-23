@@ -9,6 +9,7 @@ tex/out/*
 # Intentionally local-only 
 notes/*
 local*
+uploads/*
 
 # C extensions
 *.so

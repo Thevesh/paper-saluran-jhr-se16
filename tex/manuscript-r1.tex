@@ -1,0 +1,552 @@
+\documentclass[11pt]{article}
+\RequirePackage{fix-cm}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1.5in]{geometry}
+\usepackage[bottom, flushmargin]{footmisc}
+\setlength{\footnotesep}{\baselineskip} % space between footnotes
+\setlength{\parindent}{0in} % space at start of paragraph
+\setlength{\parskip}{0.14in} % space between paragraphs
+\linespread{1.25}
+\usepackage{titlesec}
+
+\titlespacing\section{0pt}{0.21in}{0.03in}
+\titlespacing\subsection{0pt}{0.21in}{0.01in}
+\titlespacing\subsubsection{0pt}{0.21in}{0in}
+
+% bibliography: superscript numerals, numbered by order of appearance
+\usepackage[superscript]{cite}
+\bibliographystyle{unsrt}
+
+% lists
+\usepackage{enumitem}
+
+% microtype: character protrusion and font expansion, which repairs most overfull lines
+\usepackage{microtype}
+
+% packages vital for various things
+\PassOptionsToPackage{hyphens}{url} % let URLs in the bibliography break at hyphens
+\usepackage[hyperfootnotes=false]{hyperref} % affiliation marks use \footnotetext, which makes no anchor
+\usepackage{comment}
+\usepackage{graphicx,nicefrac}
+\usepackage{caption}
+\captionsetup{justification=centering,singlelinecheck=false,font=small,skip=6pt}
+
+% Floats anchor to the top of a page and let text flow around them. LaTeX's defaults allow
+% only two floats per page and reserve 20%% of every page for text, which with 15 floats
+% defers most of them to the end of the document.
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.7}
+\renewcommand{\textfraction}{0.06}
+\renewcommand{\floatpagefraction}{0.7}
+\graphicspath{ {dataviz/} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{float}
+\usepackage{mathtools}
+
+% colors
+\usepackage{color}
+\usepackage{xcolor, colortbl}
+% heatmap tables: cell fills are emitted by estimates/tables.py, sampled from
+% matplotlib's Blues colormap; text flips to white on dark fills, as seaborn does.
+
+\hypersetup{
+	colorlinks,
+	linkcolor=black, %internal links
+	urlcolor=cyan,  % URLs
+	citecolor= red, % references
+	breaklinks=true
+}
+
+% for use in tables
+\usepackage{multirow}
+\usepackage{multicol}
+\usepackage{array}
+\usepackage{booktabs}
+\newcommand\bstrut{\rule{0pt}{2.5ex}} % space before row
+\newcommand\astrut{\rule[-1.25ex]{0pt}{0pt}} % space after row
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
+%miscellaneous
+\usepackage{marvosym}
+\newcommand{\ie}[1][]{\textit{i.e.\ }#1}
+\newcommand{\eg}[1][]{\textit{e.g.\ }#1}
+
+\begin{document}
+\pagenumbering{gobble}
+
+\begin{center}
+	\begin{minipage}{0.9\linewidth}
+		\begin{center}
+			\LARGE
+			Who Moved? Ecological Estimates of \\Turnout \& Coalition Support by Ethnicity and Age\\in Johor, Malaysia, 2022--2026\\[0.21in]
+			\Large
+			Thevesh Thevananthan\footnotemark$^{\text{\Letter}}$ and Ong Kian Ming\footnotemark\\[0.15in]
+		\end{center}
+		\large
+		At the July 2026 Johor state election, Barisan Nasional (BN) swept the state and nearly doubled its vote relative to 2022. We exploit geographic variation in the ethnic composition of polling stations and administration-induced variation in the age composition of polling streams to estimate turnout and coalition support by ethnicity and age for the three elections involving Johor since 2022, with five key findings. (1) Turnout is a first-order driver of outcomes, moving by up to 26 points within an ethnic group across elections and following a life-cycle profile. (2) BN's surge was a near one-for-one Perikatan Nasional (PN) collapse among Malay voters, robust to PN's stand-down in 23 of 56 seats and visible in near-model-free form in heavily Malay districts of the seats PN contested. (3) The largest reversal towards BN was among young Malays, who had previously carried the `green wave' of 2022. (4) On the point model, two-thirds of Pakatan Harapan's (PH) decline among the Chinese electorate came through lower Chinese turnout rather than crossover to BN---a decomposition the data support only under the model's behavioural assumption, corroborated by a turnout decline observed directly in the small near-pure Chinese stratum. (5) The apparent youth gradient in BN's 2026 support is largely ethnic composition rather than within-group behaviour: by 2026, Malay support for every coalition was close to flat in age. More broadly, we provide what we believe are the first open and fully reproducible ecological estimates of voting behaviour for any Malaysian election, accompanied by estimand-specific held-out discrepancy scores measured against near-pure streams, direct validation of the joint cells that carry the age claims, and sharp assumption-free bounds on every headline movement.
+	\end{minipage}
+\end{center}
+
+\footnotetext[1]{Universiti Malaya, W.P. Kuala Lumpur, Malaysia\\\Letter\space \href{mailto:academia@thevesh.com}{academia@thevesh.com}}
+\footnotetext[2]{Taylor's University, Selangor, Malaysia}
+
+\newpage
+\pagenumbering{arabic}
+
+\section{Introduction}
+\label{sec:intro}
+
+On 11 July 2026, Barisan Nasional (BN) won the 16th Johor state election (SE-16) in a landslide: 48 of 56 seats on a 59.7\% vote share, against 8 seats and 32.6\% for Pakatan Harapan (PH), its federal coalition partner. Perikatan Nasional (PN) won nothing, its 5.4\% statewide share reflecting a decision to contest only 33 of 56 seats (Section~\ref{sec:context}). BN's win was remarkable not just for its magnitude, but also its trajectory---it near-doubled its share of Johor's vote relative to the 15th general election (GE-15) in November 2022, which was also the worst federal result for BN in its history.
+
+What the aggregate returns cannot say is \emph{who moved} and thus generated this result. Did Malay voters who defected to PN in 2022 return to UMNO, BN's anchor party? Did Chinese voters, PH's most loyal voter base, cross over to BN---or stay home? Did youth voters swing with the tide or against it? These are important questions, but they are also the kind commentators tend to answer with constituency-level correlations---exactly the inferences Robinson\cite{robinson1950} showed can be arbitrarily wrong.
+
+We answer them with ecological inference (EI) at the finest level Malaysian data permit: the \textit{saluran}, or polling stream, of which Johor had 4,638--4,889 per election. For each saluran we observe two margins of a contingency table exactly---the demographic composition of its electorate and its full vote count---while the interior is unobserved. We estimate the interior for three elections run on identical administrative machinery (the March 2022 state election SE-15, GE-15, and SE-16), thus obtaining a comparable series of turnout and coalition support by ethnicity and age.
+
+Our paper makes three contributions. First, the estimates themselves are, to the best of our knowledge, the first formal, open, and fully reproducible saluran-level estimates of voting behaviour by demographic group for Malaysia. Existing quantitative work operates at the constituency level \cite{pepinsky2015,dettmanpepinsky2024,chen2026}, relies on national surveys \cite{marzukisuffian2023}, or reaches the saluran level only through descriptive or proprietary analyses with no explicit estimator, no quantification of uncertainty, and no open release of data or code for replication\cite{zhanghutchinson2022,welsh2026b}. Our entire pipeline---data construction, estimation, validation, and presentation---is released and archived for replication.
+
+Second, the findings surface subtleties underlying BN's comeback. The first is participation itself: turnout is a first-order driver of Johorean outcomes, moving by up to 26 points within an ethnic group across elections and following a life-cycle profile within each. Among the Malay electorate, we find that BN support jumped from 36.5\% at GE-15 to 64.1\% at SE-16, while PN support fell from 34.5\% to 6.8\%---a near one-for-one reversal, robust to PN's stand-down in 23 of 56 seats. This PN--BN reversal was steepest among young Malay voters; among Malays, PN won 52.7\% of 18--29 ballots at GE-15 (BN: 34.7\%), against just 7.6\% (BN: 86.8\%) at SE-16. In essence, BN reversed the youth-led `green wave'. That said, from a cross-sectional perspective, the apparent youth preference for BN in 2026 is largely composition: conditional on ethnicity, support for BN is generally flat in age---whereas the 2022 gradient was genuinely young Malays tilting to PN. We also find, on the point model, that the drop in Chinese support for PH (from 63.1\% of the Chinese electorate at GE-15 to 52.2\% at SE-16) is primarily attributable to demobilisation rather than crossover to BN: estimated Chinese turnout dropped by 8 percentage points, accounting for two-thirds of PH's loss among the Chinese electorate. Unlike the Malay findings, neither Chinese movement is signed by the margins alone, so this decomposition is model-dependent throughout, and we label it as such.
+
+Third, we leverage the presence of `demographically pure' salurans---created by geographic variation in ethnic composition and administrative sorting of voters into salurans based on age---to validate our estimates in a way that EI applications generally find infeasible. EI's reliability has been contested since the method existed, because its identifying assumption is untestable in the data\cite{freedman1998,cho1998,wakefield2004}, and validations against known interiors are rare \cite{hudson2010,park2014,klima2016,plesciadesio2018,pavia2022}. The aforementioned variation in our data allows us to conduct out-of-sample validation against these demographically pure salurans, thus giving us a rigorous way of quantifying the uncertainty inherent in our estimates. Rather than standard errors---which quantify precision rather than accuracy---we report the measured distance between prediction and observed behaviour, specific to each estimand and bracketed between a lower and an upper envelope in the streams where it is measured, stress-tested against the assumption that carries it to the rest of the electorate (Section~\ref{sec:strategy-transport}), extended directly to the joint ethnicity-by-age cells (Section~\ref{sec:strategy-jointcells}), and complemented by sharp, assumption-free bounds on every headline movement (Section~\ref{sec:strategy-ladder}). These scores are validation measurements, not confidence intervals, and we separate throughout what arithmetic alone delivers from what the behavioural model adds. For groups with no demographically pure salurans (Indian and Other voters), no validation is possible; we report their point estimates without error bars and flag them as not citable.
+
+The rest of our paper proceeds as follows. Section~\ref{sec:context} contextualises the three studied elections and establishes their comparability. Section~\ref{sec:data} describes the data. Section~\ref{sec:strategy} describes our empirical strategy. Section~\ref{sec:findings} presents the estimates. Section~\ref{sec:implications} draws out generalisable aspects of our methodology and findings. Section~\ref{sec:conclusion} concludes.
+
+\section{Three elections in four years: Johor, 2022--2026}
+\label{sec:context}
+
+\begin{figure}[!htb]
+	\centering
+	\caption{Coalition vote share and turnout across the three elections}
+	\includegraphics[width=\textwidth]{election_trajectory.pdf}
+	\label{fig:trajectory}
+\end{figure}
+
+Demography has underpinned Malaysian electoral competition since before independence \cite{ratnam1965,horowitz1985}: the major coalitions are alliances of ethnically based parties, and every election is read as a census of communal alignments---which is why this paper's questions are posed in ethnic and generational terms. Johor, the birthplace of UMNO and for six decades the party's safest large state \cite{hutchinson2018}, delivered two shocks in quick succession: BN lost the state (and the federal government) at the 14th general election of 2018 amid the 1MDB scandal \cite{funston2018,hutchinsonlee2019}, and the PH state government that followed fell in the `Sheraton Move' of early 2020, leaving a slim BN-led administration.
+
+That administration called the 15th state election of 12 March 2022 (SE-15) early \cite{hutchinsonzhang2022a}. It was the first election under two franchise reforms---the `Undi18' lowering of the voting age to 18, and automatic registration---which together expanded Johor's roll by roughly 40\% \cite{chai2022}. It was also the last election of Malaysia's pandemic era: travel prior to 1 April 2022 was still restricted, a constraint that fell hardest on Johor's large cross-border workforce in Singapore \cite{malaymail2022border}. BN won 40 of 56 seats on 43\% of the vote and turnout of 55\%, the lowest of the three elections. Eight months later, at GE-15 (19 November 2022), the same electorate met the `green wave'---the national surge of the Malay-Islamist PN that produced a hung parliament \cite{chin2023,washida2023}. The deadlock was resolved by a `unity government' under PH leader Anwar Ibrahim, which UMNO/BN joined, leaving PN as the sole major opposition bloc.
+
+SE-16, on 11 July 2026, was thus the first Johor-wide test of a party system reshaped twice over: BN and PH governing together federally while contesting each other for the state, and PN attempting to convert its 2022 momentum into state power. The intervening years treated the blocs very differently: the BN state government rode Johor's economic upswing and dissolved the assembly roughly a year early \cite{hutchinson2026}, while PN came apart in the months before the poll \cite{fulcrum2026}; two former PH ministers ran a minor party, BERSAMA, in 15 seats \cite{fmt2026}. PN fielded candidates in only 33 of the 56 seats---a deliberate choice, made clear by observing that the 33 it contested are 63.7\% Malay and 27.6\% Chinese, while the 23 it vacated (explicitly endorsing BN in the process) are 43.8\% Malay and 45.6\% Chinese.
+
+The result was a BN landslide (Figure~\ref{fig:trajectory}): 48 of 56 seats on 59.7\%, its best Johor result since 2008. PH held 8 seats, its worst Johor result since 2013. PN lost every seat it contested, its share in those 33 seats falling from 31.6\% to 10.3\%. Turnout was 69.6\%: fourteen points above SE-15, six below GE-15.
+
+Two features of this sequence shape everything that follows. First, the three elections were run on identical administrative machinery---the same polling districts, with no changes to their codes, the same age-based sorting rules, and rolls produced by the same system following the franchise reforms. The estimates are therefore built on a complete panel of directly comparable reporting units, without requiring geographic crosswalks or any other harmonisation assumption. This is comparability of measurement, not of politics: election type, stakes and the choice set still differed across the three contests, so a difference between them describes what happened rather than realignment net of type. Second, the sharp differences in turnout across the three elections (53.3\%, 73.7\%, 68.6\%) underscore the necessity of estimating turnout and vote choice jointly, and of reporting support both as a share of the electorate and as a share of ballots cast: when participation moves by twenty points, `Who moved?' needs to be put in context of `Who showed up?'.
+
+\section{Data}
+\label{sec:data}
+
+To operationalise voting, the Election Commission (EC) assigns every Malaysian voter to a polling district (\emph{daerah mengundi}), and within it to a numbered polling stream (\emph{saluran}) within a polling station (\emph{pusat mengundi})---this is usually a single classroom or hall with its own ballot box, its own voter list (the \emph{Daftar Pemilih Pilihan Raya}), and its own published vote count (via Form 14).
+
+For each election, we use data provided by Malaysian Election Corpus \cite{meco1} and join two datasets at saluran level. The first is the electoral roll, which records each voter's ethnicity and birth year, thus allowing us to provide exact counts in four ethnic groups (Malay, Chinese, Indian, Other) and six age bands (18--29, 30--39, 40--49, 50--59, 60--69, 70+).\footnote{Birth year is observed, so finer bands are available in principle and the replication code parameterises the partition. We use decade bands because the validation of Section~\ref{sec:strategy-groundtruth} requires each band to retain a usable near-pure stratum, which finer bands thin out; the one non-decade boundary, 60, is Malaysia's retirement age, chosen so that the life-cycle question of Section~\ref{sec:findings-turnout} is addressable.} The second is the saluran-level results, which enumerate the number of ballots issued, votes by candidate, as well as rejected and unreturned ballots. A voter's full choice set therefore comprises the three major coalitions, a residual category (minor parties and independents, rejected ballots, and issued-but-unreturned ballots), and abstention; group rates over this complete set sum to one, and the three coalition rates sum to turnout less the residual. We model the complete set and report the coalition rates and turnout. It is worth noting that the saluran-level results (Form 14) published by the EC do not contain voter counts; it is only possible to derive this by joining against the voter roll.
+
+Two independent sources of compositional variation across salurans do the identifying work in everything that follows. The first is geographic. Malay and Chinese shares trade off almost one-for-one across salurans---their correlation is close to $-1$---so the data are rich in salurans dominated by either group, and identification for their rates is strong. No saluran, by contrast, is remotely dominated by Indian or Other voters: the voter-weighted 99th percentile of Indian share is about 35\%, of Other share about 21\% (Figure~\ref{fig:collinearity}), so any estimate of their behaviour is an extrapolation far beyond the support of the data. This is a feature of Johor's residential geography, not a defect an estimator can repair.
+
+The second is administrative. The EC assigns voters to salurans within a polling district by age: saluran 1 receives the oldest voters, the last the youngest. Figure~\ref{fig:sorting} shows how sharply the rule sorts: in the first stream of a district, half the registered voters are 70 or over; in the last, four fifths are under 30. Each source of variation also yields near-pure salurans---ethnically pure ones from residential geography, age-pure ones from the sorting rule---in which a group's behaviour is very nearly observed, and against which Section~\ref{sec:strategy-groundtruth} validates the estimates.
+
+\begin{figure}[!htb]
+	\centering
+	\caption{Why only Malay and Chinese rates are identified}
+	\includegraphics[width=\textwidth]{collinearity.pdf}
+	\label{fig:collinearity}
+\end{figure}
+
+\begin{figure}[!htb]
+	\centering
+	\caption{The Election Commission sorts voters into streams by age}
+	\includegraphics[width=\textwidth]{saluran_sorting.pdf}
+	\label{fig:sorting}
+\end{figure}
+
+One further feature of the joint distribution shapes interpretation rather than identification: ethnicity and age are strongly associated. Johor's Chinese electorate is much older than its Malay electorate, so each age band has a different ethnic mix (Figure~\ref{fig:agecomp}): the youngest band is 60\% Malay, the oldest 42\% Malay and 51\% Chinese. This association both confounds marginal age patterns (Section~\ref{sec:findings-age}) and causes models that estimate age separately from ethnicity to fail validation (Section~\ref{sec:strategy-groundtruth}).
+
+\begin{figure}[!htb]
+	\centering
+	\caption{Ethnic composition of each age band, SE-16}
+	\includegraphics[width=\textwidth]{age_composition.pdf}
+	\label{fig:agecomp}
+\end{figure}
+
+Each saluran therefore forms a contingency table with exact demographic and electoral margins but an unobserved interior---the number of registered Chinese voters in their sixties who cast a BN ballot, say. Recovering that interior is the classic ecological inference problem \cite{robinson1950,king1997}, here repeated across 14,222 saluran-election tables.
+
+Finally, we exclude early-voting salurans and postal ballots, because we do not have a reliable method to derive the total electorate for these groups, particularly since many individuals originally designated as early voters (primarily police, military, and their spouses) may have subsequently applied to vote via post. The excluded bloc is under 3.5\% of ballots, and including the early salurans moves no statewide estimate by more than about one point.
+
+\section{Empirical strategy}
+\label{sec:strategy}
+
+Because EI estimates depend on assumptions about the hidden interior \cite{robinson1950,freedman1998,cho1998}, we build and test the specification in five steps: ecological regression, a bounded link, exact accounting reconciliation, held-out validation, and the estimand-specific error that validation yields. Between the last two, we validate the joint cells directly (Section~\ref{sec:strategy-jointcells}) and probe the assumption that carries measured performance from validatable streams to the rest of the electorate (Section~\ref{sec:strategy-transport}); after them, we ask what arithmetic alone delivers on each headline claim (Section~\ref{sec:strategy-ladder}).
+
+For group $g$ and outcome $c$---turning out, or voting for a coalition---the estimand is
+\begin{equation}
+	b_{gc} \;=\; \frac{\text{registered voters in } g \text{ who did } c}{\text{registered voters in } g}.
+	\label{eq:estimand}
+\end{equation}
+
+The denominator is registration, not turnout, deliberately: staying home is treated as one of the things a voter can do, so a group's turnout and its party rates share one denominator, add up, and keep mobilisation and persuasion inside one accounting frame---which matters when turnout moves by twenty points between elections. Throughout, we call the register the \emph{electorate} and reserve \emph{ballots} for votes actually cast: a group's rates as shares of its electorate sum across outcomes, and its shares of ballots follow by dividing through by turnout.
+
+In every model below, a saluran's rate is the average of its groups' rates, weighted by composition,
+\begin{equation}
+	p_{ic} \;=\; \sum_g x_{ig}\, b_{igc},
+	\label{eq:identity}
+\end{equation}
+where $p_{ic}$ is saluran $i$'s observed rate of outcome $c$, $x_{ig}$ is group $g$'s share of saluran $i$'s electorate, and $b_{igc}$ is group $g$'s unobserved rate of $c$ in that saluran. Both $x$ and $p$ are observed. Within an EI framework, one needs to impose assumptions in the identity in order to estimate $b$; we construct these carefully below.
+
+One boundary should be drawn before any estimation. Equation~\eqref{eq:estimand} identifies group rates, and changes in those rates, but not individual transition matrices. Equal and opposite coalition movements strongly imply net movement between them, since the arithmetic rules out rival aggregate flows that did not move, but offsetting churn beneath the net figures is invisible to every method used here. We therefore describe net, not individual, movement throughout.
+
+\subsection{Step 1: Classic ecological regression}
+\label{sec:strategy-lpm}
+
+The classical estimator assumes each group behaves the same everywhere, $b_{igc}=b_{gc}$, and reads the rates off equation~\eqref{eq:identity} as regression coefficients \cite{goodman1953}. The mechanism at its heart carries every method in this paper. Suppose one stream is 90\% Malay and gives BN 55\%, another is 30\% Malay and gives BN 25\%. If Malay voters have one rate $m$ and everyone else one rate $n$, these are two equations in two unknowns, and they solve exactly: $m=60\%$, $n=10\%$. Group rates fall out of aggregates alone, because streams with different mixes are different blends of the same unknowns. With 4,889 streams the solution becomes a weighted least-squares fit of
+\begin{equation}
+	p_{ic} \;=\; \sum_g x_{ig}\, b_{gc} + \varepsilon_{ic},
+	\tag{M1}\label{eq:m1}
+\end{equation}
+with saluran electorates $V_i$ as weights, no intercept, and $\varepsilon_{ic}$ the residual; the coefficients \emph{are} the group rates \cite{goodman1953}, \emph{assuming the same} $m$ everywhere.
+
+Six of the 120 group-outcome estimates (Table~\ref{tab:m1}) across the three elections fall outside their deterministic bounds, the worst putting PN support among Indian voters at $-5.2\%$ at SE-16. The failures concentrate where small parties meet groups spread thinly across the state, requiring extrapolation beyond the observed compositional support. These clipped estimates also reproduce a published breakdown of these elections whose estimator is otherwise undocumented.
+
+\input{tab_m1}
+
+\subsection{Step 2: Link function}
+\label{sec:strategy-link}
+
+Keeping rates between zero and one requires a link. We keep the mixture of equation~\eqref{eq:identity}, write each group's rate as a transformed coefficient, and fit by binomial maximum likelihood on the outcome counts---$Y_{ic}$, the number of saluran $i$'s electorate of $V_i$ who did $c$:
+\begin{align}
+	Y_{ic} & \;\sim\; \operatorname{Binomial}\!\Big(V_i,\; \sum_g x_{ig}\operatorname{expit}(\beta_{gc})\Big),
+	\tag{M2, logit}\label{eq:m2}                                                                               \\
+	Y_{ic} & \;\sim\; \operatorname{Binomial}\!\Big(V_i,\; \sum_g x_{ig}\,\Phi(\beta_{gc})\Big),
+	\tag{M3, probit}\label{eq:m3}
+\end{align}
+so the group rate is $b_{gc}=\operatorname{expit}(\beta_{gc})$ under M2 and $\Phi(\beta_{gc})$ under M3. The transformation applies to the group rates; the saluran remains their observed composition-weighted mixture. Fitting $\operatorname{expit}(\sum_g x_{ig}\beta_g)$ instead would not yield interpretable group rates.
+
+Logit and probit estimates differ by at most 0.030 points, so the link choice is immaterial. We retain the logit because the prior below and the odds-ratio-preserving raking of Step 3 are naturally expressed on that scale.
+
+M2 is deliberately the plainest bounded member of a large family. The EI literature offers far richer likelihoods for the same margins---King's truncated-normal model \cite{king1997}, hierarchical and convolution formulations \cite{wakefield2004}, incomplete-data likelihoods \cite{imailustrauss2008}, and R$\times$C extensions that respect the deterministic bounds within the model itself \cite{rosen2001,greinerquinn2009}. We do not select among them on theoretical grounds. Instead we impose the bounds by construction (Step 3), test the specification against held-out behaviour (Step 4), and benchmark a hierarchical R$\times$C model on the identical test---where it performs no better (Section~\ref{sec:strategy-groundtruth}). The complexity this paper adds is in the rows and the validation, not the likelihood, and Section~\ref{sec:implications} argues that ordering is general.
+
+One corner needs handling: PN is almost absent among non-Malays, so the unpenalised likelihood sends those coefficients to $-\infty$. A weakly informative $N(0,2.5^2)$ prior on each $\beta$ \cite{gelman2008} keeps the corner finite while changing identified estimates by at most 0.034 points. Statewide, one estimate of 120 now sits outside its deterministic bounds, by 0.025 points. The choice of scale does no hidden work: refitting the entire preferred specification with prior scales of 1.0 and 5.0, and with the prior removed, moves no validated marginal by more than 0.06 points and no Indian or Other marginal by more than 0.3 points (Section~\ref{sec:strategy-errors} returns to why the latter are nonetheless not citable). That having been said, an estimate can respect its statewide bounds and still be impossible in individual streams, which is what the next step establishes and fixes.
+
+\subsection{Step 3: Accounting constraint}
+\label{sec:strategy-rake}
+
+Before any modelling, counting alone rules things out. In a stream of 500 voters, 300 of them Malay, where BN won 400 votes, the 200 non-Malays can supply at most 200 of them: at least 200 and at most 300 BN votes are Malay, with nothing assumed about behaviour. In general, for a saluran with electorate $V$, group size $N_g$ and outcome total $Y_c$, the number of group-$g$ members among those $Y_c$---call it $y_{gc}$---satisfies
+\begin{equation}
+	\max(0,\; Y_c - (V - N_g)) \;\le\; y_{gc} \;\le\; \min(Y_c,\, N_g).
+	\label{eq:bounds}
+\end{equation}
+These sharp bounds \cite{duncandavis1953} rest only on the observed margins: the true cell count must lie within them. Their width therefore measures how much each estimate is constrained by arithmetic rather than modelling \cite{chogaines2004}, and they bind hardest where a stream is dominated by one group---which is why Johor's near-pure streams matter so much in Step 4. Table~\ref{tab:bounds} reports them statewide, for every group and election: any account of these elections must live inside these intervals, regardless of the model used to estimate it.
+
+\input{tab_bounds}
+
+M2 still violates the constraint locally: 18.5\% of saluran-level cells across the three elections are impossible under M2's own estimates, rising to 23.9\% at SE-16, and its implied statewide BN total at SE-16 misses the observed count by 2,501 ballots. A decomposition that fails either margin is not coherent.
+
+The constraint has to be imposed where it lives: the saluran. We therefore rake each saluran's group-by-choice table to its observed margins, starting from M2's statewide rates. Iterative proportional fitting yields the unique non-negative table matching both margins while preserving the starting table's odds ratios \cite{demingstephan1940,irelandkullback1968}---structure-preserving estimation \cite{purcellkish1980}, the standard small-area tool for this shape of problem: margins known, interior borrowed. Because the bounds follow from the margins, imposing the margins imposes the bounds in every stream. We verify that there are no violations anywhere, that margins are matched to $2\times10^{-13}$, and that every statewide total is reproduced exactly.
+
+Raking also splits the work sensibly between data and model, since near-pure salurans are determined largely by their margins while mixed ones inherit more from the model. What it buys, though, is coherence rather than accuracy: scored against the held-out outcomes of Step 4, the raked estimates miss by 4.15 points on average against 4.12 for raw M2. Accuracy improves only in Step 4, when the rows are redefined.
+
+\subsection{Step 4: validation against observed behaviour}
+\label{sec:strategy-groundtruth}
+
+Because the Commission sorts voters into streams by age, a large share of streams contain, near enough, a single age band---and in such a stream the published result is very close to that band's own turnout and vote. That supports a held-out test: fit the model on \emph{mixed} salurans only, predict the near-pure ones, and score the predictions against what those streams actually did. The idea has two lineages: homogeneous-precinct analysis \cite{grofman1992}, and the small body of work validating EI wherever an administrative accident recorded the truth \cite{hudson2010,plesciadesio2018,park2014}.
+
+A 95\%-pure stream does not literally reveal the dominant group's rate, because the remaining 5\% still contribute to the result. We therefore use the exact interval permitted by the margins as the target, applying equation~\eqref{eq:bounds} to the pure subset. At 95\% purity these intervals average 0.7 points wide for the age bands and 2.3 for the validated ethnic groups---narrower for age because the sorting rule leaves many streams exactly one band, while ethnically pure streams only just clear the threshold---and a prediction scores zero whenever it falls inside the interval, so no credit is taken for its width.
+
+At the 95\% threshold Johor supplies 1,066--1,122 age-pure salurans per election, and 735--754 ethnically pure ones. Two caveats bound what the test can show. The first is selection: because pure and mixed streams may occupy different localities, we score both an unrestricted holdout (design A) and one restricted to districts containing both types (design B). The restricted design produces slightly smaller joint-model misses---0.76 against 0.97 points at SE-16---while leaving the decisive 70+ comparison unchanged, the separate model missing that band by 10.0 points under A and 10.7 under B. We therefore report the unrestricted, more conservative design; the full grid is in the replication output.
+
+The second caveat is coverage, which is uneven. At SE-16 the age-pure share falls from 56.0\% of the 18--29 electorate to 4.4\% of the over-70s, while ethnic holdouts cover 24.5\% of Malays, 2.8\% of Chinese, and no usable Indian or Other stratum at any threshold. The validation is therefore strongest for age and Malays, weaker for Chinese, and silent exactly where the estimates are already flagged as non-citable. Selection also runs in opposite directions across the two dimensions---age-pure streams sit in larger districts, ethnically pure ones in districts half the size with turnout 9.3 points higher---so no single behavioural confound easily explains the passing results in both.
+
+The model which estimates ethnicity and age separately has a mean miss of 4.93 points across the held-out age outcomes, reaching 19 points on BN support among the over-70s. The reason is intuitive to understand, since it is a function of the sorting rule. Johor's Chinese are older on average, so the oldest stream in a district is disproportionately the Chinese stream: the electorate of age-pure 70+ salurans is 86\% Chinese, against 51\% for the 70+ electorate as a whole. A model with one rate per age band cannot tell a 70-year-old Chinese voter from a 70-year-old Malay voter, and is wrong in precisely the way the administrative design guarantees.
+
+Because the roll records ethnicity and birth year for the same person, every saluran's 24 ethnicity-by-age margins are counted exactly rather than modelled. Replacing the 10 separate ethnic and age rows with these 24 joint cells---without changing the likelihood, the prior or the raking---cuts the mean age miss from 4.93 to 0.98 points, the worst 70+ miss from 19 points to 5, and the ethnic cells from 1.79 to 1.39. However, it does not fix the under-identification of Indian and Other voters.
+
+One comparison puts this in context, and its scope should be stated exactly. The hierarchical Bayesian R$\times$C model of Rosen et al.\cite{rosen2001}, as implemented in eiPack \cite{eipack2007}, was run on the six-row marginal age problem at SE-16, on the same held-out streams, and gives a mean miss of 5.49 points against our 4.88 on that same specification. The two are indistinguishable and fail in the same places: on marginal rows, the hierarchy has no access to the joint composition either, so it inherits the identical confound, and any estimator on the same rows shares it however its likelihood is structured \cite{greinerquinn2009,imailustrauss2008}. The benchmark therefore supports a narrow claim---that in the failed marginal-age specification, row definition matters more than likelihood complexity---and not a broad one. It does not benchmark the preferred 24-row model or a partial-identification method, and we make no claim that richer models could not improve the final estimates. The narrow conclusion is consistent with ground-truth assessments elsewhere, in which estimator choice moves EI accuracy far less than the information the units carry \cite{klima2016,plesciadesio2018}.
+
+A second comparison is against the current frontier in covariate-adjusted EI: the semiparametric estimator of McCartan and Kuriwaki \cite{mccartankuriwaki2025}, which identifies group rates under conditional ignorability given area-level covariates and estimates them by debiased machine learning, with a specification test of the identifying assumption and robustness values for omitted confounding. We fit it (their \texttt{seine} package) on the four ethnic rows, with the covariates these data supply: log polling-district and stream electorate, the district's outcome shares at the previous election, and the stream's age composition, each through a spline basis. The 24 joint rows are not attempted, since the estimator faces a positivity problem when most cells are near-empty in most streams; age enters as a covariate instead. Three things come back. First, the headline \emph{movements} are the same to within a point: Malay BN support rises 27.3 points under seine against 27.6 in our model, Malay PN falls 26.9 against 27.7, Chinese turnout falls 8.3 against 8.0 and Chinese PH support 9.6 against 10.9. Levels differ more, by 2.4 points on average across the sixteen validated group-estimand-elections and by up to 4.5 (Chinese BN support at GE-15, 9.1\% against our 4.6\%), the covariate-adjusted estimates sitting uniformly a few points \emph{toward} the statewide mean. Second, seine's specification test---which checks the partially linear form of the conditional expectation function that conditional ignorability implies---rejects that form under this covariate specification for BN, PH and abstention at both elections ($p < 10^{-6}$), while not rejecting it for PN at GE-15. That does not disprove conditional ignorability under some richer covariate set, but it does mean the covariate-adjusted estimates, like ours, rest on an identifying assumption the data do not confirm. Third, its robustness values---the strength of an omitted variable, as a partial $R^2$ with the outcome and the analogous share of variation in the estimator's weighting function, needed to move an estimate---put the confounding required to move a validated rate by five points at 0.17--0.34 (moderate, not fragile); the confounding needed to move it by our own discrepancy score is naturally much smaller for the well-validated cells, 0.01--0.05 for the Chinese rates and 0.03--0.35 for the Malay ones. We have not benchmarked these values against the observed covariates, as the method's authors recommend, so they are reported as scale rather than verdict. The comparison is of statewide marginals, not of held-out accuracy, since the estimator's unit-level predictions are not exposed for scoring against near-pure strata; what it establishes is that adjusting for the covariates available here changes levels by a few points and movements by less than one.
+
+\subsection{Direct validation of the joint cells}
+\label{sec:strategy-jointcells}
+
+The crosstab is the object the age findings rest on, and a joint cell cannot borrow its error from the marginals. Errors in different cells can cancel inside either marginal---a model that puts too many young Malays and too few old Malays into BN can reproduce the Malay marginal and the young marginal exactly---so no inequality bounds a cell's error by the larger of two aggregates containing it. An earlier draft carried the larger marginal score into each cell as a `conservative proxy'; it is not conservative, and we no longer do it.
+
+The same two sources of variation that create ethnically pure and age-pure streams also create streams that are near-pure on a single \emph{joint} cell: a saluran with at least 95\% of its electorate in one counted ethnicity-by-age cell (95\% Malay and 95\% one age band would guarantee only 90\%; the criterion is the joint cell itself). We repeat the holdout of Step 4 with the joint cell as the unit: exclude every stream at or above the joint-purity threshold, fit the 24-row model on the rest, predict each eligible cell's stratum, and score against the exact interval, with the same district-block bootstrap and the same ten-district floor. At 95\% purity three cells qualify at every election---Malay 18--29 (42--46 districts, 7\% of the cell's electorate), Malay 30--39 (16--30) and Malay 40--49 (19--27)---and no Chinese cell does. Relaxing the threshold trades sharpness for reach: the mean target width runs 1.8, 4.0, 10.0 and 13.0 points at 95, 90, 80 and 75\% purity, and the mean miss 1.15, 0.59, 0.07 and 0.12, with older Malay and Chinese cells becoming eligible only where the target is too wide to discriminate. The full grid is in the replication output; the crosstab carries bars from the 95\% grid only.
+
+The directly validated cells support the claim that matters most and expose where the model is weakest. Among 18--29-year-old Malays, the held-out PN rate is predicted at 42.1\% of the electorate at GE-15 against a permitted interval of $[39.9, 42.4]$, and at 5.5\% at SE-16 against $[5.5, 7.3]$---the green wave's youngest cohort, and its collapse, observed almost directly. The worst cell-estimand at 95\% is GE-15 Malay 30--39 BN support, predicted at 30.3\% against $[37.7, 39.3]$, a miss of 7.5 points; GE-15 Malay 40--49 PN misses by 3.1. Across the 36 directly validated cell-estimands the lower-envelope score averages 1.5 points and the upper 3.1, roughly the marginal figures. In Tables~\ref{tab:joint} and \ref{tab:malay} a cell therefore carries a discrepancy score (marked \textsf{d}) only where its own stratum was held out; every other cell is a model-based point estimate on which we make no cell-level claim, and the age findings of Section~\ref{sec:findings} are built on the validated cells first.
+
+\subsection{Transportability: from validatable to non-validatable streams}
+\label{sec:strategy-transport}
+
+Step 4 measures accuracy where near-pure salurans exist, but the estimand lives everywhere, so the measured error must travel from streams where arithmetic nearly pins a rate down to mixed streams where it does not. If a group's behaviour varied with the composition of its surroundings---the classic contextual-effect failure of the constancy assumption \cite{achenshively1995,gelman2001}---the error would be measured exactly where such a failure has the least room to express itself. This is the principal assumption the error bars rest on. It cannot be verified outright, but it can be probed, because the compositional gradient between mixed and pure is itself observed.
+
+We run two probes. The first hardens the extrapolation. The design of Step 4 fits on every saluran below 95\% purity, which includes streams at 90\%---close compositional cousins of the targets. Refitting on only the streams below 80\% purity---discarding about a fifth of the training streams, and everything compositionally adjacent to the targets---and predicting the same $\ge$95\% strata degrades the mean miss from 0.98 to 1.16 points on the age outcomes and from 1.39 to 1.67 on the ethnic ones, with the worst single cell moving from 4.1 to 4.4. If group rates drifted along the compositional gradient, this deliberately harder extrapolation would fail outright; instead, near-pure behaviour is predicted almost as well from genuinely mixed streams as from adjacent ones.
+
+The second probe dispenses with near-pure streams entirely. We split the mixed salurans at the electorate-weighted median of the compositional gradient---Malay share for the ethnic dimension, dominant-band share for age---and fit the full specification separately on each half, yielding two estimates of every marginal from disjoint compositional regimes, neither containing a single near-pure stream, compared on common statewide weights. The halves agree to 1.5 points on average (median 1.1), part of which is estimation noise from halving the data, and the largest gaps (up to 5.9 points) sit precisely where Table~\ref{tab:errors} already reports its largest scores, the Malay coalition rates of 2022. Marginals can hide offsetting instability among the cells beneath them, so we repeat the split for all 24 joint cells and under a second partition, district size. Cells with at least 1.5\% of the electorate agree across the district-size halves to 1.9 points on average (worst 7.2), but across the compositional halves to only 4.4 (worst 21 points, on GE-15 BN support among Malays aged 60--69). The instability is graded rather than absent: the three directly validated Malay cells move 3.7 points on average across the compositional halves (worst 11.3) and 2.5 across the district-size halves (worst 7.0), less than the older cells but not nothing, and the older Malay and Chinese cells that Section~\ref{sec:strategy-jointcells} could not validate directly are the least stable. The marginals and the validated cells are therefore roughly, not exactly, invariant across observable compositional regimes; the older joint cells are not, which is why they carry no score.
+
+Locality is the specific confound behind selection, and filtering to districts that hold both kinds of stream (design B) does not fully hold it fixed, since the model is still pooled across those districts. A third design reweights the training streams so that their distribution over district size---the covariate that most separates pure from mixed streams---matches that of the held-out strata, and then predicts as before. The reweighted fit misses by \emph{less}, 0.74 against 0.98 points on the age outcomes and 1.30 against 1.39 on the ethnic ones. The signed residual of each held-out district, prediction minus the midpoint of its interval, is weakly related to district size for most strata (mean $|r|$ of 0.18 across group-election-estimands, mean signed residual $-0.06$ points) but not for all: for the over-70s the correlation reaches $-0.5$ to $-0.7$ on turnout and PH support, so for that band---already the weakest reported stratum---the misfit does run along the urban-rural axis. Two limits of the design should be stated. The reweighting matches the district-size distribution of all pure streams within a dimension, not of each target group's own stratum, so it is an urban--rural robustness check rather than a complete locality adjustment for every estimand; and none of the probes reaches behaviour in streams that contribute no compositional contrast.
+
+What the probes cannot do is reach the deep interior. The harder extrapolation still tests behaviour at the pure end of the gradient, a nonlinearity or a failure confined to balanced streams could pass it, and constancy among voters who contribute to no compositional contrast is untestable by any design; that residual assumption is retained in Section~\ref{sec:strategy-limits}. What they establish is bounded: along the observable compositional gradient the constancy assumption holds approximately for the marginals and the validated cells, fails visibly for the older joint cells, and is untested in the interior. The lower-envelope score is measured on near-pure support; it does not pin down the error of the statewide mixed-stream estimand, and the paper does not use it as if it did.
+
+\subsection{Step 5: what the discrepancy scores measure}
+\label{sec:strategy-errors}
+
+Conventional sampling errors do not address the dominant uncertainty here. The margins are a finite population that was counted---2,703,175 registered voters and every ballot they cast---so what constrains us is identification: which member of the admissible set we report depends on a behavioural assumption the data cannot test, and being wrong about it produces \emph{bias}, not noise, which 2.7 million voters do nothing to shrink \cite{manski1995}. The distinction is substantive, not pedantic: Indian turnout at SE-16 has a bootstrap standard error under three points on a quantity whose deterministic bounds run from 1.7\% to 99.8\%. We therefore report held-out prediction error rather than sampling precision, and we call the resulting quantity a \emph{discrepancy score}: the measured distance between the model's prediction and observed behaviour in the streams where behaviour can be observed. The bounds themselves need no such treatment: because the margins are a census rather than a sample, the intervals of Table~\ref{tab:bounds} are exact, not estimates requiring the partial-identification inference of Imbens and Manski \cite{imbensmanski2004}. The nearest precedent for what follows is Elff et al.\cite{elff2008}, who widen EI intervals to carry non-sampling error and verify their realised coverage against a known truth; we differ in measuring the non-sampling component directly against held-out behaviour rather than deriving it from a second-stage model.
+
+Step 4 has already produced that measurement. For each group, election and estimand, the discrepancy score we print (marked \textsf{d} in the tables, deliberately not $\pm$, since it is not an interval) is the statewide distance between prediction and what the corresponding held-out streams actually did. It is a validation score, not an interval: it is not a standard error, not a confidence interval, not an identified-set bound, and not a guaranteed bound on the statewide estimate it decorates. Errors are estimand-specific because turnout and the three coalition outcomes are not predicted equally well---Chinese PN support is near zero with nowhere to go, while Malay BN support at GE-15 is the hardest quantity in the paper---so an average across the four would overstate three and understate the fourth.
+
+Ballot shares are the exception, and require propagation rather than direct scoring. Scoring a ratio against its own bounds flatters it twice, because the admissible interval of a ratio is roughly twice as wide as its components' and the component errors can cancel: at SE-16 the model undershoots both Malay turnout (74.3 against permitted bounds $[76.8, 78.8]$) and Malay BN votes (62.8 against $[63.7, 65.6]$), yet their ratio sits inside the wider interval and records a miss of zero. The ballot-share bars therefore inherit their components' errors without assuming cancellation, $E_v = (E_{\text{party}} + s\,E_{\text{turnout}})/t$, where $t$ is the group's turnout and $s$ the ballot share itself---the exact worst case of the first-order expansion of the ratio $s = b_{\text{party}}/t$ in its two components' errors. Propagation is the primary measurement; the direct score is retained as a floor, binding only in the handful of cells where it is larger, so that the printed bar is never below either quantity. The asymmetry is deliberate: the direct score is downward-censored for the reason just given, while propagation errs only by assuming the component errors align, so taking the maximum resolves every ambiguity conservatively.
+
+The error is formed at the statewide scale of the reported estimand. Saluran-level misses, which average 5.8 points, measure local heterogeneity rather than error in the statewide aggregate.
+
+One statewide miss is a single number, and which corners of Johor happen to contain validatable streams is arbitrary, so we resample. Let $H_g$ be the near-pure streams whose dominant group is $g$, and $D_g$ the polling districts containing them. A replicate draws $|D_g|$ districts with replacement and keeps every held-out stream in each, so streams in one place move together. Within a replicate, the target interval $[L, U]$ and the prediction $\hat p$ are aggregated over the drawn streams, weighting by $N_{ig}$, the group's registered electorate in stream $i$; $Y_i$ and $V_i$ are stream $i$'s outcome total and electorate, and $\hat p_i$ the model's predicted rate for the group there:
+\begin{equation}
+	L = \frac{\sum_i \max\{0,\, Y_i - (V_i - N_{ig})\}}{\sum_i N_{ig}}, \qquad
+	U = \frac{\sum_i \min\{Y_i,\, N_{ig}\}}{\sum_i N_{ig}}, \qquad
+	\hat p = \frac{\sum_i N_{ig}\, \hat p_i}{\sum_i N_{ig}},
+	\label{eq:aggmiss}
+\end{equation}
+giving a miss of $\max\{L - \hat p,\, \hat p - U,\, 0\}$---zero whenever the prediction is admissible. The reported error is the root mean square of that miss across 2,000 replicates: a root mean square over replicates of one statewide quantity, not over estimands or streams. Table~\ref{tab:errors} gives the full set.
+
+\input{tab_errors}
+
+Two properties of this statistic must be stated plainly, because it is neither a standard error nor a bound. First, it is censored: a prediction anywhere inside the permitted interval scores zero, so the statistic is a \emph{lower envelope} of the true statewide distance between prediction and behaviour. The same interval supplies the matching ceiling. Since the truth lies inside $[L, U]$, the distance from prediction to truth is at most $\max\{|\hat p - L|,\, |\hat p - U|\}$, and running the identical bootstrap on that quantity gives an \emph{upper envelope}. Both envelopes describe the held-out stratum: the resampling perturbs which validatable districts are represented, not the latent behaviour of mixed streams, so neither envelope is a bound on the statewide estimand, and combining envelopes across elections below is a conservative heuristic rather than a worst-case calculation. Across validated groups, the lower bars average 1.20 points on the age outcomes against a ceiling of 1.81, and 1.55 against 3.59 on the ethnic ones; the gap between the envelopes is bounded by the width of the target interval---0.7 and 2.3 points on average, respectively---which is exactly what the censoring can hide and no more. Second, the censoring does not interact perversely with the resampling: the width of the target is set by purity, a property of the streams in a stratum rather than of any particular resample, so replicates do not systematically convert error into zeros by drawing wide intervals---and the ceiling carries the width explicitly in any case. Every score in Table~\ref{tab:errors} is the lower envelope; the movements subsection below reports what is robust to the upper one.
+
+The resulting error is empirical, election-specific and estimand-specific: Malay BN support carries a score of 6.1 points at GE-15 and 1.0 at SE-16, because the green wave put Malay voters somewhere the constancy assumption fits them badly, so pooling across elections would contradict the paper's own subject. It is also conservative twice over, since the scored model is fitted on mixed salurans only and the unrestricted design leaves locality differences inside the measured error. Against that, it transports performance from near-pure into mixed streams---the assumption Section~\ref{sec:strategy-transport} probes directly, finding approximate rather than exact invariance along the compositional gradient. Because the conservative forces and the transporting one run in opposite directions, the net direction of the bars is unknown rather than flattering---one more reason they describe typical error, not confidence intervals, and carry no nominal coverage.
+
+The purity threshold is a design choice that moves several things at once---the training set, the held-out streams and the localities they occupy, the group coverage, and the width of the target---so its sensitivity is reported as a frontier rather than attributed to any one of them. Moving from 90 to 95 to 98\% purity narrows the mean target from 2.6 to 1.1 to 0.4 points, shrinks the held-out strata from 171 to 134 to 109 districts and from 25 to 20 to 16\% of the group electorate, and enlarges the training set from 3,476 to 3,733 to 3,895 streams; the lower-envelope score rises from 0.57 to 1.08 to 1.62 points while the upper falls from 2.85 to 2.08 to 1.97. The two envelopes converge as the target sharpens, which is what one expects if the underlying distance is around 1.5--2 points and the censoring, not the model, is what varies. We use 95\% because it is where the strata are still large and the envelopes already close.
+
+\subsubsection*{Movements, and why they survive}
+
+Most claims in Section~\ref{sec:findings} concern movement between elections, so two discrepancy scores must be combined: the score on a movement is the sum of the measured scores of the same quantity at the two elections being compared,
+\begin{equation}
+	E_{\Delta} = E_{\text{from}} + E_{\text{to}}.
+	\label{eq:combine}
+\end{equation}
+Adding assumes the worst case, that both misses point the same way. The root sum of squares is smaller but assumes independence, which we have no grounds to assert: the same geography, sorting rule and estimator sit behind both elections, and a misspecification that persists is exactly the kind that will not cancel. When a movement exceeds this combined score we say it is \emph{robust to discrepancies of the magnitude observed in the validatable streams}---a statement about the procedure, not a test of significance, since the scores carry no coverage. Every headline movement in Section~\ref{sec:findings} is robust in this sense, and the two null claims---stable Malay turnout between GE-15 and SE-16, and stable Malay BN support across the two 2022 elections---are not, so both enter only as statements that something did \emph{not} move detectably.
+
+The censoring bracket sharpens this further. Combining the \emph{upper} envelopes instead---a heuristic that assumes the truth sat at the far end of its permitted interval at both elections, in opposite directions---still leaves the central findings intact: the Malay reversal survives with room to spare (a ceiling of 10.9 points against BN's 27.6-point move, and 6.5 against PN's 27.7), as do PH's fall in the Chinese electorate (5.5 against 10.9) and every ordering in the life-cycle turnout profile. The one headline quantity that clears its measured error but not this doubly-worst-case ceiling is the Chinese turnout fall of 8.0 points (ceiling 10.2), though nearly all of that ceiling is the 3.4-point width of the ethnic target interval rather than any measured misfit. What can be said without the model is narrower: in the near-pure Chinese stratum itself, turnout lies in $[70.1, 73.5]$ at GE-15 and $[65.9, 69.2]$ at SE-16, so those streams did demobilise---but they hold only about 3\% of the Chinese electorate, and the sharp statewide bound on the Chinese turnout change spans zero by tens of points (Table~\ref{tab:claims}). The compositional gradient of Figure~\ref{fig:turnout} is suggestive but is itself an ecological relationship, not model-free evidence of a group-specific change. The statewide eight-point fall is therefore the point model's estimate, corroborated in the stratum where it can be observed, and not an identified quantity.
+
+\subsubsection*{Groups we do not report}
+
+Indian and Other estimates carry no error bar, because the bar is the variability of the held-out miss across polling districts and Johor supplies no usable near-pure stratum for either group. The classification is not threshold-sensitive: at 95\% purity every reported group spans at least 19 districts---Malays 217--224, the youngest band 310--355---whereas Indian voters have no near-pure saluran at any election and Other voters at most five, spanning one to four districts and holding at most 1.8\% of the group. Any threshold between 5 and 19 therefore classifies every group identically; we use ten. The over-70 stratum spans only 19 to 29 districts, short of the thirty clusters conventionally held to be needed for cluster-based variance estimation \cite{cameronmiller2015,cameronetal2008}, so its bars are the least reliable in Table~\ref{tab:errors}; we report them rather than drop the band carrying the paper's clearest life-cycle finding, on the strength of a convention designed for hypothesis tests we do not run. Which groups a design can validate is an artefact of the particular electorate, not a general rule.
+
+What \emph{can} be said about the two groups is the bounds of Table~\ref{tab:bounds}, which need no model. For Indian turnout at SE-16 the margins permit anything from 1.7\% to 99.8\%, and for Indian BN support 0.3\% to 96.5\%: that is the absence of information, not a precision problem a better estimator could narrow. The bounds are per cell, not per group---for instance, Indian PN support is confined to $[0.0, 14.8]$.
+
+One might suspect the printed point estimates for these groups of being the prior in disguise, since a weakly informative prior shrinks an unidentified logit towards even odds. They are not: under prior scales of 1.0 and 5.0, and under unpenalised likelihood, no Indian or Other marginal moves by more than 0.3 points---Indian turnout at SE-16 reads 55.3--55.4\% under every prior. The estimates are pinned by the thin compositional variation that does exist and by the raking to exact margins. Stability under reparameterisation is not identification: it shows only that this fitting criterion has a stable optimum, and says nothing about whether that optimum is near the truth. We nonetheless print them, because a transparent scholarly record should show what the machinery produces alongside the demonstration of why it should not be quoted; the deterministic bounds remain the only statement about these two groups that we stand behind.
+
+\subsection{What arithmetic alone delivers: the claim ladder}
+\label{sec:strategy-ladder}
+
+Table~\ref{tab:bounds} bounds one cell at a time, but every substantive claim in Section~\ref{sec:findings} is a contrast---a change between elections, BN against PN, one age band against another---and the sharp bound on a contrast can be tighter than the difference of two cellwise bounds, because within a saluran the cells share margins: a Malay BN ballot and a Malay PN ballot draw on the same Malay row and cannot both be at their maximum. For each headline movement we therefore solve the transportation problem directly---in every saluran, the minimum and maximum of the contrast over all non-negative tables consistent with both margins, summed across salurans, with a between-election change bounded by the difference of the two elections' extremes---and report the result beside the point estimate and its discrepancy score (Table~\ref{tab:claims}). Because the 949 polling districts are identical at GE-15 and SE-16, the same bounds are also computed on the 33 seats PN contested at SE-16, which the stand-down makes the cleaner territory.
+
+\input{tab_claims}
+
+The ladder separates what the margins deliver from what the model adds. Two conclusions need no behavioural assumption at all: Malay PN support fell, by at least 7 points of the Malay electorate statewide and at least 6.7 on contested territory, and the balance between BN and PN among Malays moved toward BN, by at least 5.6 points on contested territory. BN's own rise among Malays is not signed by arithmetic (its sharp bound is $[-1.1, +48.0]$ on contested territory), and the Chinese movements and the within-election age contrasts have sharp bounds spanning zero by tens of points.
+
+\subsubsection*{The intermediate rung: sign restrictions}
+
+Between the margins and the constancy assumption lies a rung that asks only for the \emph{sign} of two associations. Following Elzayn et al.\cite{elzayn2026}, treat a group as a binary indicator $X$ and an outcome as a binary $Y$, and define the between-group association $\delta_B = E[\mathrm{Cov}(Y, X \mid N)]$---do members differ from non-members inside the same saluran---and the within-group association $\delta_W = E[\mathrm{Cov}(Y, X_N \mid X)]$---does a member's rate move with the composition of the saluran. Constancy is the special case $\delta_W = 0$. Their result is that the two canonical point estimators bracket the truth once the signs are known: the neighbourhood model (the composition-weighted mean of saluran rates) errs against the sign of $\delta_B$, ecological regression with an intercept errs with the sign of $\delta_W$, and the sharp identified set is the intersection of the Duncan--Davis interval with the appropriate one-sided bounds. Neither sign is observed here, and we say what stands behind each. The sign of $\delta_B$ is wholly substantive (Malays vote BN and PN more, and turn out more, than their non-Malay neighbours; Chinese voters vote PH more, BN less, and turn out less, than theirs); the joint-cell holdout isolates one dominant cell and cannot validate a within-saluran difference between groups. For $\delta_W$ we use a \emph{diagnostic} sign: the direction in which the split-sample check of Section~\ref{sec:strategy-transport} moves a group's rate with its own share---an output of the same ecological model, not a measurement of $E[\mathrm{Cov}(Y, X_N \mid X)]$---read either as one common sign across the three elections or election by election (the two can differ: Malay PN's diagnostic is flat at GE-15 and positive at SE-16), with gaps under one point treated as no evidence. Table~\ref{tab:monotone} reports, for the six headline rates, the sets under unknown $\delta_W$, under each diagnostic sign convention, and under the paper's own preferred assumption of \emph{contextual reinforcement} (the two signs agree), whose testable implication---that the two point estimators order the same way---holds for every rate at both elections. All of these are sharp identified sets \emph{conditional} on the stated signs, and the conditioning is the substance.
+
+\input{tab_monotone}
+
+Sign restrictions sign what arithmetic could not. With $\delta_B \ge 0$ assumed and $\delta_W \ge 0$ as the diagnostic, the GE-15 to SE-16 change in Malay BN support is in $[+12.2, +37.0]$ points of the Malay electorate under a common sign and $[+12.2, +43.9]$ election by election; for Malay PN it is in $[-29.7, -18.5]$ and $[-30.9, -18.5]$; and the point model lies inside all of these sets at both elections. The one-for-one reversion of Section~\ref{sec:findings-malay} therefore has its direction established one rung below the model, with only its magnitude left to constancy. The Chinese movements remain unsigned at this rung, and the table records two tensions honestly. For Chinese turnout and Chinese BN support the assumed sign of $\delta_B$ (negative) and the diagnostic sign of $\delta_W$ (positive) disagree, so contextual reinforcement---which would sign the Chinese turnout fall at $[-12.3, -2.5]$---is contradicted by our own check and we do not lean on it; and under the two signs the evidence does support, the point model sits just outside the identified set for those two rates at both elections, by 1--3 points. Either one of the sign restrictions fails for the Chinese minority outcomes or the constant-rate model overstates them slightly; both are small quantities, and Section~\ref{sec:findings-chinese} carries the caveat. We do not implement a bounded-violation sensitivity region \cite{manski2018,jiangking2020}; Section~\ref{sec:implications} places it.
+
+\subsection{The preferred specification}
+\label{sec:strategy-preferred}
+
+Table~\ref{tab:models} summarises the progression. Link choice and raking barely affect held-out accuracy---the linear model, the logit and raked M2 land within 0.03 points of one another---while raking alone restores feasibility in every stream and exact margins. Accuracy improves only in the last row, when the ten separate ethnic and age rows are replaced by 24 joint cells. The estimator was never the binding constraint; the row definition was.
+
+\begin{table}[!htb]
+	\caption{The specifications compared}
+	\label{tab:models}
+	\centering
+	\footnotesize
+	\setlength{\tabcolsep}{3pt}
+	\begin{tabular}{lccccc}
+		\toprule
+		                                                          & Rates in     & Possible     & Totals       & \multicolumn{2}{c}{Mean $|$miss$|$}                 \\
+		\cmidrule(lr){5-6}
+		Specification                                             & $[0,1]$      & everywhere   & exact        & Age                                 & Ethnicity     \\
+		\midrule
+		Bivariate scatterplot                                     & no           & no           & no           & 5.37                                & 2.57          \\
+		M1 Goodman LPM                                            & no           & no           & no           & 4.95                                & 1.73          \\
+		M2 ecological logit                                       & yes          & no           & no           & 4.93                                & 1.70          \\
+		M3 probit                                                 & yes          & no           & no           & 4.93                                & 1.70          \\
+		Raked M2, 4 ethnicity $+$ 6 age $=$ 10 rows               & yes          & yes          & yes          & 4.93                                & 1.79          \\
+		\textbf{Raked M2, 4 ethnicity $\times$ 6 age $=$ 24 rows} & \textbf{yes} & \textbf{yes} & \textbf{yes} & \textbf{0.98}                       & \textbf{1.39} \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+We therefore report raked M2 on the 24 joint rows throughout: every cell is feasible, every margin is exact, and the specification passes the held-out test. Among validated groups its marginals differ from the separate model's by at most 1.7 points---the numbers barely move, but their provenance changes from a specification that fails a real-data test to one that passes it.
+
+The bivariate row is the method implicit in every scatterplot-with-a-trendline published after a Malaysian election: fitting vote share against a group's electorate share and reading the line off at 100\% is algebraically identical to two-group ecological regression. It performs tolerably where near-pure salurans exist, landing within 1--3 points of the full model, but where they do not it extrapolates far beyond the data---Indian BN support of $-23.1\%$ at GE-15, with ten of the 24 Indian and Other extrapolations arithmetically impossible.
+
+\subsection{What the estimates cannot do}
+\label{sec:strategy-limits}
+
+Six limits bound what follows. The estimand is a group aggregate, not an individual transition. The validation checks the behavioural assumption only where near-pure salurans exist---directly for the age bands and Malays, partially for Chinese, not at all for Indian and Other. The error bars are measured in near-pure salurans and carried to the rest of the electorate; Section~\ref{sec:strategy-transport} probes that carriage along the observable compositional gradient and finds no failure, but constancy in the deep interior---among voters contributing to no compositional contrast---remains untestable by any design. The scores are held-out discrepancies, not confidence intervals, and a joint cell carries one only where its own stratum was held out. All results describe the ordinary polling-day electorate. And nothing here identifies \emph{why} groups moved.
+
+Exactness is conditional. The bounds and margins are exact given the constructed data---the roll's ethnicity classification, birth year as the age measure, the roll-to-result join, the coding of candidates to coalitions, and the exclusion of the early and postal bloc---and we have no evidence that any of these is materially wrong, but a reader should take `assumption-free' to mean free of behavioural assumptions, not of measurement.
+
+One further limit is about Johor rather than method: its electoral geography is unusually favourable to EI, with extreme Malay--Chinese compositional variation across 4,900 small units. A more evenly mixed state would give wider bounds and weaker identification---and the same pipeline, applied there, would report that in the discrepancy scores, or decline to report at all.
+
+\section{Findings and discussion}
+\label{sec:findings}
+
+Table~\ref{tab:results} reports the preferred estimates for all three elections on both scales, as shares of each group's electorate and of its ballots; Table~\ref{tab:joint} gives the SE-16 joint crosstab and Table~\ref{tab:errors} the discrepancy scores. Displayed \textsf{d} values are held-out discrepancy scores, not intervals of any kind; `robust' below means robust to discrepancies of the magnitude observed in the validatable streams (Section~\ref{sec:strategy-errors}). Point estimates without a score---Indian and Other, and joint cells with no directly validated stratum---are not used for any substantive claim, and each headline claim is labelled by where it sits on the ladder of Section~\ref{sec:strategy-ladder}.
+
+This section reports what moved, by how much and among whom; the explanations offered for \emph{why} remain interpretive.
+
+\input{tab_results}
+
+\input{tab_crosstab}
+
+\subsection{Participation}
+\label{sec:findings-turnout}
+
+Turnout varies more across the three elections than any coalition rate. Chinese turnout rose from 42.8\% of the Chinese electorate at SE-15 to 69.0\% at GE-15 before falling to 61.0\% at SE-16; Malay turnout moved from 63.1\% to 78.3\% to 75.5\%. The ethnic gap therefore narrowed from twenty points to nine, then widened to fourteen. Figure~\ref{fig:turnout} shows the final step directly: turnout fell everywhere between GE-15 and SE-16, but roughly twice as steeply in Chinese-dominated salurans as in Malay-dominated ones. The exceptionally low SE-15 Chinese rate plausibly also reflects the then still-restricted Singapore border (Section~\ref{sec:context}).
+
+\begin{figure}[!htb]
+	\centering
+	\caption{Turnout against ethnic composition, GE-15 vs SE-16}
+	\includegraphics[width=\textwidth]{turnout.pdf}
+	\label{fig:turnout}
+\end{figure}
+
+\begin{figure}[!htb]
+	\centering
+	\caption{Estimated turnout by ethnicity}
+	\includegraphics[width=\textwidth]{turnout_ethnicity.pdf}
+	\label{fig:turnout-eth}
+\end{figure}
+
+\begin{figure}[!htb]
+	\centering
+	\caption{Estimated turnout by age band}
+	\includegraphics[width=\textwidth]{turnout_age.pdf}
+	\label{fig:turnout-age}
+\end{figure}
+
+Across age bands, the most interesting feature sits at Malaysia's retirement age. At SE-16 turnout rises from a 65.6\% trough among the 30--39s to 79.1\% among the 60--69s---the decade \emph{after} retirement---then falls to 59.7\% past 70, a peak-to-trough spread of 13.4 points against a combined discrepancy score of 1.4 (Figure~\ref{fig:turnout-age}). Retirement does not demobilise: the 60--69s out-vote the 50--59s by 4.1 points against a combined score of 1.6, and the same ordering holds at all three elections. These are marginal age claims, directly validated in age-pure streams; the sharp bounds on the same contrasts span zero, so they are model results, robust in the stated sense.
+
+The trough is likewise not the youngest band but the thirties, whose turnout at both 2022 elections was the lowest of any band under 70---46.1\% at SE-15, below even the 51.6\% of the supposedly apathetic 18--29s. This life-cycle profile---a dip in the young-family decade, a peak in the retirement decade, and a cliff at 70---appears within both major ethnic groups in the crosstab rather than reflecting composition: within Malay voters, SE-16 turnout runs 74.6, 73.1, 74.0, 81.4, 83.5 and 68.7\% across the bands, and the Chinese profile has the same shape at a lower level with a steeper gradient (Table~\ref{tab:joint}). The within-ethnicity statement is a joint-cell claim, and only its youngest three Malay cells are directly validated (Section~\ref{sec:strategy-jointcells}); the older Malay cells and every Chinese cell are model-based, so the within-group profile is offered as what the model implies, not as a validated finding.
+
+The thirties are therefore a more specific mobilisation target than `the youth', while growth in the 70+ share will mechanically weigh on aggregate turnout, since the collapse past 70 runs 19 points below the peak. These data cannot distinguish practical barriers from declining interest as the explanation.
+
+\subsection{The Malay reversal}
+\label{sec:findings-malay}
+
+Malay BN support was flat across the two 2022 elections---36.0\% and 36.5\% of the Malay electorate---and then rose to 64.1\% at SE-16, a move of $+27.6$ points against a combined discrepancy score of 7.1. Malay PN support fell from 34.5\% to 6.8\% over the same step, a move of $-27.7$ against 3.2. The two claims sit on different rungs of the ladder (Table~\ref{tab:claims}): the PN fall is signed by arithmetic alone, at least 7 points of the Malay electorate, whereas BN's rise is not, and it is the model that puts it at 28. The movements are equal and opposite, and no other Malay flow is large enough to account for either: PH stayed in single digits throughout, and Malay turnout moved less than 3 points, within its combined score. On the ballot scale, Malays gave BN 84.9\% of their ballots at SE-16 against 46.7\% at GE-15, a swing of roughly 430,000 ballots against a statewide BN gain of 513,809. Figure~\ref{fig:scatter-malay} shows the same rotation in the raw saluran relationship: BN's share climbs steeply with Malay composition---from about 48\% of the valid vote in near-fully-Malay salurans to nearly 90\%---while the PN line collapses towards the axis and the PH line barely moves.
+
+\begin{figure}[!htb]
+	\centering
+	\caption{Coalition vote share against Malay composition, GE-15 vs SE-16}
+	\includegraphics[width=\textwidth]{scatter_malay.pdf}
+	\label{fig:scatter-malay}
+\end{figure}
+
+PN's support among non-Malays is essentially zero at every election, so PN's Johor story is entirely a Malay story. Within it, the crosstab reveals a structure invisible in the marginals: the 2022 wave was steeply age-graded. Table~\ref{tab:malay} shows it on the scale where it is most legible, each band's support as a share of its own ballots. At GE-15 PN won 52.7\% of ballots among 18--29-year-old Malays, against 24.7\% among the 60--69s and 14.1\% among the over-70s, while BN's shares ran the other way, from 34.7\% among the youngest to 78.4\% among the oldest. By SE-16 every band gave BN 81--87\% and PN 6--11\%. The reversal was therefore largest exactly where the wave had been strongest: the statewide movement is the sum of age-specific reversals, not a uniform shift. The youngest band is where this is established rather than modelled: the direct holdout of Section~\ref{sec:strategy-jointcells} predicts PN support among 18--29-year-old Malays inside its permitted interval at both elections, and the 30--39 and 40--49 cells are validated with larger discrepancies. The three older bands carry no bar; the shape of the gradient beyond 50 is the model's, and the split-sample check found those cells unstable, so the finding should be read as `steepest among the young, flat by 2026', with the older end of the 2022 gradient indicative only.
+
+\input{tab_malay}
+
+\subsubsection*{Did PN simply hand its voters to BN?}
+
+PN's stand-down in 23 seats creates the main rival explanation: BN may have gained through coalition coordination rather than changed voter preference. Three checks reject that account, all comparing GE-15 with SE-16 on fixed territory, since Johor's 949 polling districts are identical at the two elections.
+
+First, if the stand-down were doing the work, BN should have gained more where PN withdrew. It did not: BN gained 29.3 points of the valid vote in the 33 seats PN fought and 28.7 in the 23 it left, a difference of 0.6 points in the wrong direction (Figure~\ref{fig:standdown}).
+
+\begin{figure}[!htb]
+	\centering
+	\caption{The GE-15 to SE-16 swing, by whether PN contested the seat}
+	\includegraphics[width=\textwidth]{pn_standdown.pdf}
+	\label{fig:standdown}
+\end{figure}
+
+Second, vanished PN votes account for almost the same share of BN's gain on both sides of the divide: 78.1\% in the stand-down seats, against 77.5\% in the contested seats, where PN's collapse is directly observed.
+
+Third, and decisively: within the 33 seats PN did contest, take the 198 polling districts more than 90\% Malay, where the ecological arithmetic nearly pins the answer down on its own. Measured against the electorate on fixed territory, BN rose from 39.1\% to 61.0\% and PN fell from 32.1\% to 10.4\%---a gain of 21.8 points against a loss of 21.7, a ratio of 1.01, holding at 0.99--1.02 at purity thresholds of 80 or 95\%---while PH moved 2.4 points and turnout 2.2.
+
+The one-for-one relationship therefore appears in near-model-free form exactly where the stand-down cannot contribute, and the 23 vacated seats hold only 55 of the 253 heavily Malay districts, so they are not carrying the finding.
+
+\subsubsection*{What the pattern rules out, and what it suggests}
+
+The pattern is inconsistent with a mobilisation account, because Malay turnout did not rise, and the measurable non-Malay contributions were small. It therefore identifies net reversion within the Malay electorate: the direction is delivered by the margins, since the sharp bound on the change in Malays' BN-minus-PN balance excludes zero on contested territory, while the magnitude is the model's. The natural interpretation is a return from PN to BN, although individual transitions and offsetting churn remain unobserved.
+
+Three contextual mechanisms are consistent with the reversal: the change from a scandal-damaged UMNO in 2022 to a popular BN state administration amid economic growth, which is the circumstance under which an economic-grievance protest rather than a durable ethno-religious realignment should recede \cite{washida2023}; PN's visible organisational disintegration in the months before SE-16; and the greater weight of state machinery in a state election, where UMNO Johor's organisation has no PN counterpart \cite{ostwaldoliver2023}. These are interpretations, not identified causal effects.
+
+The age structure weighs against a durable cohort realignment: the 2022 gradient disappeared rather than ageing forward with the cohort, and by SE-16 the 18--29s were indistinguishable from their elders, residual PN support peaking instead at 11.1\% of ballots in the 50--59 band (Table~\ref{tab:malay}). The wave was generational in its arrival and general in its retreat.
+
+The arrangement Johor previewed has since been extended and made explicit: heading into the Negeri Sembilan state election (to be held on 1 Aug 2026), BN and PN have divided all 36 seats between them. Two Johor observations carry over: first, BN's gain was no larger where PN withdrew, so standing down added little that BN was not achieving anyway; second, PN's position is weaker than its headline suggests, because the seats it kept were the most favourable to it and it still lost more than two thirds of its vote there. These are valuable baseline findings, because the Negeri Sembilan election---where there is no constituency with both a BN and PN candidate contesting---will not offer the same scope for study.
+
+Finally, Johor is not Malaysia: it is UMNO's heartland and PN's weakest peninsular flank. Accordingly, although our findings show that the PN-to-BN flow can happen fast and at near-total levels, we do not expect it to be repeatable at the same scale elsewhere.
+
+\subsection{Chinese demobilisation}
+\label{sec:findings-chinese}
+
+PH support fell from 63.1\% to 52.2\% of the Chinese electorate between GE-15 and SE-16, a move of 10.9 points against a combined discrepancy score of 0.6. Chinese turnout fell 8.0 points against 3.8, while PH's share among Chinese voters fell 5.9 points, from 91.5\% to 85.6\%, against a combined score of 6.1. Roughly two thirds of the electorate-scale decline therefore came through abstention, and the remaining third rests on a change smaller than the discrepancies observed in validatable streams, and so is not established. This section's conclusions are model-dependent throughout, and two cautions apply to it more than any other. The Chinese holdout is the smallest reported stratum with the widest targets, so its lower-envelope scores are small partly because predictions often land inside a wide interval---the upper envelopes (2.7 points for PH and around 5 for turnout at each election) are the more informative figure---and the sharp bounds on both Chinese movements span zero by tens of points (Table~\ref{tab:claims}), so the decomposition into abstention and crossover is entirely a model result.\footnote{The split is not an artefact of how the product $b_{\text{PH}} = t \times s$ is decomposed: weighting the turnout channel by the start-, end-, or midpoint ballot share attributes between 63\% and 67\% of the decline to turnout. `Two thirds' is robust to the convention.} BN's share of Chinese ballots rose from 6.6\% to 11.2\% on the same weak footing, and Chinese BN support across the three elections---4.5, 4.6 and 6.8\% of the Chinese electorate---is the quietest series in Table~\ref{tab:results}: the 2.2-point movement at SE-16 exceeds its combined score fourfold, but is an order of magnitude smaller than the Malay swing. Figure~\ref{fig:scatter-chinese} shows the shift in the raw data: the PH line against Chinese composition moves down roughly in parallel, while the BN line rises modestly from a low base.
+
+\begin{figure}[!htb]
+	\centering
+	\caption{Coalition vote share against Chinese composition, GE-15 vs SE-16}
+	\includegraphics[width=\textwidth]{scatter_chinese.pdf}
+	\label{fig:scatter-chinese}
+\end{figure}
+
+This places Johor's Chinese electorate in a pattern familiar from the comparative literature on differential abstention: when a community's preferred party faces an unlosable or unwinnable election, or its alternatives have converged, participation absorbs the shock that vote-switching would otherwise register---abstention from alienation or indifference rather than realignment \cite{adams2006}. All three conditions held at SE-16: the outcome was not in doubt, PH's federal alliance with BN meant a DAP voter was indirectly supporting a government containing UMNO, and PN was visibly moribund in the state. Contemporaneous commentary read the result the same way---Chinese voters staying home to punish PH rather than crossing over \cite{rsis2026}. What the estimates add is that only one of that account's two components is established: `predominantly demobilisation' is the strongest claim these data support.
+
+The SE-15 comparison points the same way, with one caveat. Chinese turnout at SE-15 sat 20 points below Malay turnout, the widest gap in the series---but SE-15 was held three weeks before the Singapore border reopened to quarantine-free travel, and Chinese Johoreans are overrepresented in the cross-border workforce, so part of that gap is plausibly a travel barrier rather than a choice. The cleaner evidence that demobilisation is a standing response to low-stakes elections rather than a 2026 novelty is SE-16 itself, where no restriction was in place and the gap was still fourteen points. The persistence of the gap carries a competitive implication: in a seat-based system a 14-point ethnic turnout differential can convert PH's efficient urban vote into fewer seats, which is exactly what happened---PH won 8 of 56 seats on a third of the valid vote. Whether Chinese participation rebounds at the next general election, as it did between SE-15 and GE-15 with a 26-point jump in eight months, is arguably the most consequential open parameter for GE-16 in mixed seats.
+
+\subsection{Age: Mostly composition, not behaviour}
+\label{sec:findings-age}
+
+\begin{figure}[!htb]
+	\centering
+	\caption{Coalition vote share against the saluran's median age, GE-15 vs SE-16}
+	\includegraphics[width=\textwidth]{age_scatter.pdf}
+	\label{fig:age-scatter}
+\end{figure}
+
+Marginally, BN support appears strongest among younger voters at SE-16. Figure~\ref{fig:age-scatter} shows support varying steeply and smoothly with a saluran's median age, and the marginals agree: BN's age profile inverts between the elections, rising with age at GE-15 (17.8\% of the 18--29 electorate to 31.6\% of the 60--69s) and falling with age at SE-16 (42.9\% among the youngest down to 30.6\% among the over-70s). Both the reversal and the 2026 gradient exceed their combined scores, inviting the conclusion that BN's recovery was led by the young.
+
+Within ethnicity, that gradient largely disappears. Malay support for each coalition is nearly flat across age (Table~\ref{tab:malay}: BN between 81 and 87\% of each band's ballots, PN 6--11\%, PH 4--6\%), while Chinese variation operates mainly through the turnout life-cycle of Section~\ref{sec:findings-turnout} rather than through vote choice. The marginal pattern arises because younger cohorts are more Malay and older cohorts more Chinese (Figure~\ref{fig:agecomp}). GE-15 differs: young Malays genuinely preferred PN, so composition and within-Malay behaviour reinforced one another. By SE-16 the behavioural gradient had collapsed, leaving only the unchanged compositional gradient---so what inverted between the elections was not behaviour twisting from one gradient to its opposite. The crosstab's authority for these statements is graded. The flatness of Malay support across the three youngest bands, which hold 60\% of the Malay electorate, is directly validated; its extension to the older bands is model-based, and the Chinese profile is model-based throughout. What is established is therefore that the young-Malay tilt to PN at GE-15 was real and had gone by SE-16, and that a marginal age model reads composition as behaviour; the full six-band shape of within-group support is the model's account, labelled as such.
+
+This clarifies a live Malaysian argument. Because the enfranchisement reforms made the youngest cohort the most Malay, any pro-Malay-party swing appears youth-led in marginal data, and debates over whether Undi18 fuelled the green wave have turned on exactly such comparisons. The young Malay tilt to PN at GE-15 was real and large, but it appeared only after SE-15---polling-district analyses of the newly enfranchised there found no distinctive behaviour \cite{zhanghutchinson2022}---and had disappeared by SE-16. The apparent 2026 youth tilt to BN is instead what Johor's age-by-ethnicity composition predicts.
+
+\section{Broader implications for EI applications}
+\label{sec:implications}
+
+Johor's electoral geography is unusually favourable to ecological inference, and its sorting rule is an administrative stroke of luck, albeit one which is likely to persist as long as the EC does not change its administrative practices. However, we identify three lessons from this exercise which are broadly applicable to EI applications.
+
+First, staying home is a choice, and should be modelled as one. Most EI applications condition on having voted, estimating how each group divided the ballots it cast---which may end up removing a large source of inter-election variation. Making the electorate the denominator instead means a group's support rates sum to its turnout, and its turnout and abstention to one, keeping mobilisation and persuasion inside a single frame. Johor's Chinese electorate shows what this buys: PH's support fell 10.9 points of that electorate between GE-15 and SE-16, roughly two-thirds of it through lower turnout. Conditioning on voters would have shown only the remaining third---a 5.9-point fall in PH's ballot share that we cannot distinguish from zero once our error bars are included---missing the finding while reporting a smaller one confidently. The distinction is not cosmetic, because the two channels imply different prospects for recovery: a party that has lost voters to abstention faces a different task from one that has lost them to a rival.
+
+Second, identification is won through richer rows, not richer or more sophisticated likelihoods. Age-by-vote tabulations are among the most-quoted numbers in electoral commentary anywhere, and wherever age composition differs along a cleavage which also affects behaviour (such as ethnicity), there is a clear omitted variable problem, and the marginal age gradient is confounded by construction \cite{achenshively1995,chen2026}---in our paper, the magnitude of the bias is enough to reverse the sign of some findings. The fix is not a better estimator but a finer cross-classification: our deliberately plain specification matched a hierarchical Bayesian R$\times$C model cell-for-cell on the held-out streams, while redefining a row from 10 marginal groups to 24 joint cells cut the age-cell miss from 4.93 points to 0.98. Where the row definition omits a jointly observed confounder, a finer cross-classification should take priority over a more sophisticated likelihood---and whether one is available is a question about data, not about methodology.
+
+Third, uncertainty should be measured where it can be and left unquantified where it cannot. The trap is to reach for a classical standard error, which asks how far an estimate would move in a different sample, with the property that the standard error shrinks as the sample grows; an EI estimate's problem is not that it was sampled (in fact, in Malaysia's case, the entire universe of data is observed) but that it is unidentified given the data that are available. Being wrong about the behavioural assumption produces bias, which no quantity of data can fix. We therefore recommend looking for the presence of near-pure units in which a group's behaviour is nearly observed, thus allowing it to be held out and predicted in an out-of-sample procedure. Within our paper, this approach gave us measured discrepancy scores for every estimand where validation could be conducted---including, directly, the joint cells that carry the age claims---and flagged those where it could not (Indian and Other, and the older joint cells). Two features of the construction are conservative---the scored model sees less data than the one we report, and locality differences are left inside the measured error---while one runs the other way, since performance observed where the margins nearly pin a rate down is carried to streams where they do not; that carriage should itself be probed wherever the data allow, as in Section~\ref{sec:strategy-transport}, by hardening the extrapolation and by split-sample checks along the compositional gradient. The absence of near-pure units for specific groups is itself highly informative---at a minimum, this should trigger closer inspection of the underlying data (for example, using simple scatter plots similar to those employed in this paper) to understand whether a particular point estimate is an extrapolation far beyond the support of the available data. Where no near-pure units exist at all, the honest alternatives are those of the partial-identification literature: report the deterministic bounds, weaken constancy to an explicit bounded-variation or shape assumption \cite{manski1995,manski2018,manskipepper2018,jiangking2020}, or attach robustness values stating how large a violation of the identifying assumption would overturn each conclusion \cite{mccartankuriwaki2025}. Measured validation where the data permit it, and explicit partial identification where they do not, strike us as the frontier of what aggregate data can honestly support \cite{chomanski2008}. We are candid about which rungs this paper climbs. We report sharp margins-only bounds, the monotone-EI sets of Elzayn et al.\cite{elzayn2026} under sign restrictions our own checks can speak to, a validated point model, and a covariate-adjusted semiparametric comparator with robustness values \cite{mccartankuriwaki2025}; we do not report a bounded-contextual-effect sensitivity region \cite{jiangking2020,manski2018}, which would complete the ladder. And for the groups the margins cannot identify, no refinement of aggregate methods substitutes for a stratified individual-level sample combined with the aggregates.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+The July 2026 Johor landslide, decomposed against validated group-level estimates, uncovers critical information about contemporaneous electoral dynamics. There was a net reversion of Malay voters from PN to BN---its direction delivered by arithmetic alone on the territory PN contested, its 28-point magnitude by a model validated against held-out behaviour---and robust to PN's stand-down in 23 seats. This reversion undid a green wave which had been steeply generational; young Malays carried it in 2022 and their net reversal in 2026 was largest---both observed almost directly in joint-pure streams---and, on the model, Malay politics flattened across the older bands too. On the point model, loyalty to PH largely persisted among Chinese voters who turned out and demobilisation was the primary cause of PH's decline in Chinese support---a decomposition that the near-pure Chinese stratum corroborates but that the margins alone do not identify.
+
+Our paper also contributes two durable artefacts. First, an open, reproducible pipeline for deriving bounded, validated estimates from saluran-level data---hitherto non-existent in empirical research on Malaysia. Second, a demonstration that the presence of near-pure units becomes a valuable resource allowing for out-of-sample validation when exploited---and a template for separating, claim by claim, what the margins deliver from what the model adds. Beyond the specific estimates, these two artefacts are what we hope readers take away. As Malaysia approaches its 16th general election on the same roll and the same salurans, we hope our paper provides a rigorous baseline against which the next set of movements can be measured.
+
+\section*{Data and code availability}
+All inputs are public, from the Malaysian Election Corpus \cite{meco1}. The full replication pipeline---data construction, estimation, validation, robustness checks, tables and figures---is available via \href{https://github.com/Thevesh/paper-saluran-jhr-se16}{GitHub}, and will be archived with a persistent DOI upon publication.
+
+\section*{Funding}
+This research did not receive any specific grant or funding.
+
+\section*{Declaration of competing interests}
+
+TT does not declare any competing interests. OKM is a member of the DAP---a component party of PH, one of the coalitions studied in this paper---and served as MP for Serdang (2013--2018) and subsequently Bangi (2018--2022). He left frontline politics in 2023 and is currently an Adjunct Professor at Taylor's University.
+
+\section*{CRediT author statement}
+Both authors contributed equally to the conceptualisation, design, and writing of this manuscript.
+
+\newpage
+
+\bibliography{references}
+
+\end{document}

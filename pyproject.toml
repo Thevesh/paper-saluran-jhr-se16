@@ -12,3 +12,8 @@ dependencies = [
     "pyarrow>=25.0.0",
     "scipy>=1.18.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

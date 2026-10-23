@@ -1,6 +1,6 @@
 """Run the whole estimation pipeline, start to finish.
 Usage:
-    python3 estimates.py                 everything except the two slow stages
+    python3 estimates.py                 everything except the three slow stages
     python3 estimates.py --all           everything, including them
     python3 estimates.py --from joint    resume from a named stage onwards
     python3 estimates.py --list          show the stages and stop
@@ -8,11 +8,12 @@ Usage:
 One run reproduces every number, table and figure in the paper from the raw voter roll and
 ballot files. Stages run in order; each reads what the ones before it wrote to estimates/output/.
 
-Two stages are skipped by default because they are slow and their outputs are already in the
-repo. `data` rebuilds the saluran panel from the external voter roll (~10 min, and needs
+Three stages are skipped by default because they are slow or need R, and their outputs are
+already in the repo. `data` rebuilds the saluran panel from the external voter roll (~10 min, and needs
 ROLL_DIR in estimates/common.py to point at a local copy). `benchmark` fits the eiPack
 hierarchical Bayesian model for the comparison in Section 4.4 (~1.5 h, and needs R with eiPack
-installed). Everything else runs in a few minutes.
+installed); `benchmark_seine` fits the covariate-adjusted semiparametric comparator (needs R with
+seine, github.com/CoryMcCartan/seine). Everything else runs in a few minutes.
 """
 
 import argparse
@@ -39,9 +40,15 @@ STAGES = [
     ("joint_estimates", "the joint model's crosstab, marginals and scaled panel", False),
     ("standdown",       "the PN stand-down checks of Section 5.2", False),
     ("holdout",         "the unrestricted vs locality-fixed holdout designs", False),
-    ("kappa",           "the bounded-heterogeneity frontier of Section 4.5", False),
-    ("errors",          "the reported error bars, and the purity-threshold check", False),
+    ("kappa",           "the bounded-heterogeneity frontier (replication extra)", False),
+    ("errors",          "the held-out discrepancy scores, and the purity-threshold check", False),
+    ("jointholdout",    "direct validation of the joint ethnicity-by-age cells", False),
+    ("contrasts",       "sharp LP bounds on the headline contrasts (claim ladder)", False),
+    ("robustness",      "prior sweep, transportability, locality, censored-miss bracket", False),
+    ("monotone",        "monotone-EI identified sets (needs robustness_split.csv)", False),
+    ("seine_input",     "covariate panels for the seine benchmark", False),
     ("benchmark",       "the eiPack hierarchical Bayesian comparison", True),
+    ("benchmark_seine", "the covariate-adjusted semiparametric (seine) comparison", True),
     ("tables",          "tex/tab_results, tab_crosstab, tab_errors", False),
     ("workbook",        "the estimate workbooks in estimates/output/", False),
     ("report",          "the HTML report in estimates/output/", False),
@@ -51,7 +58,10 @@ STAGES = [
 def run(stage):
     t = time.time()
     print(f"\n\033[1m>> {stage}\033[0m", flush=True)
-    r = subprocess.run([sys.executable, f"{stage}.py"], cwd=EST)
+    if stage == "benchmark_seine":                       # an R stage; needs seine installed
+        r = subprocess.run(["Rscript", f"{stage}.R"], cwd=EST)
+    else:
+        r = subprocess.run([sys.executable, f"{stage}.py"], cwd=EST)
     if r.returncode:
         raise SystemExit(f"\n{stage} failed (exit {r.returncode}); pipeline stopped")
     print(f"   done in {time.time() - t:.0f}s", flush=True)
@@ -88,7 +98,7 @@ def main():
             raise SystemExit("dataviz failed")
     print(f"\n\033[1mpipeline complete in {time.time() - t:.0f}s\033[0m")
     if not a.all:
-        print("(skipped the slow stages: data, benchmark -- rerun with --all to include them)")
+        print("(skipped the slow stages: data, benchmark, benchmark_seine -- rerun with --all to include them)")
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ interior at the saluran level imposes the bounds automatically, everywhere, by c
 For each saluran build the full group x choice table and rake it (iterative proportional
 fitting) to its two known margins, starting from a seed supplied by the model:
 
-    seed_gc = model's statewide rate of choice c in group g       (strictly positive)
+    seed_igc = model's rate of choice c in group g, for saluran i's contest  (strictly positive)
     IPF ->  T_gc >= 0,  sum_c T_gc = N_g,  sum_g T_gc = Y_c
 
 IPF converges to the unique table matching both margins while preserving the seed's odds
@@ -45,6 +45,12 @@ arithmetic settles, which is the behaviour you want and cannot get from post-hoc
 The seed needs a rate for every choice column, so M2 is refitted across all 8 columns
 rather than only the 4 headline estimands. The seeded rates need not sum to 1 within a
 group -- the row margin forces that during raking.
+
+The seed is CONTEST-AWARE (seed_tables): each coalition column is fitted only on the seats it
+contested, separately for each component party that stood (BN-UMNO and BN-MCA seats get their
+own profiles), and the local bundles (OTHER, BERSAMA) are fitted seat by seat. The original
+Johor pipeline used one statewide seed per column. That is wrong wherever coalitions stand down
+or field different component parties, and seatcheck.py shows how wrong.
 
 Outputs the final bounds-consistent estimates, plus the naive capped variant, plus a
 verification that every saluran-level Frechet bound is satisfied.
@@ -70,8 +76,9 @@ def _safe_div(num, den):
 def ipf(seed, N, Y, maxit=MAXIT, tol=TOL):
     """Rake every saluran at once. Vectorised over salurans so this can be bootstrapped.
 
-    seed : (G, C) statewide rate matrix, shared by all salurans -- it carries the model's
-           association structure and nothing saluran-specific.
+    seed : (G, C) rate matrix shared by all salurans, or (n, G, C) one per saluran -- the
+           contest-aware seed (seed_tables) is per saluran, because who was on the ballot,
+           and so the profile of a column, differs from seat to seat.
     N    : (n, G) row margins, registered by group.
     Y    : (n, C) column margins, the choice counts.
     Returns (n, G, C) raked tables.
@@ -80,7 +87,10 @@ def ipf(seed, N, Y, maxit=MAXIT, tol=TOL):
     margins are fine -- a zero row or column comes out zero and stays zero. The seed floor
     keeps every cell reachable, since IPF can never revive a structural zero.
     """
-    T = np.broadcast_to(np.clip(seed, SEED_FLOOR, None), (len(N), *seed.shape)).copy()
+    seed = np.clip(seed, SEED_FLOOR, None)
+    if seed.ndim == 2:
+        seed = np.broadcast_to(seed, (len(N), *seed.shape))
+    T = seed.copy()
     T *= (N[:, :, None] > 0) * (Y[:, None, :] > 0)
     for _ in range(maxit):
         T *= _safe_div(N, T.sum(axis=2))[:, :, None]
@@ -90,16 +100,134 @@ def ipf(seed, N, Y, maxit=MAXIT, tol=TOL):
     return T
 
 
-def build_seed(df, el, dim, link="logit"):
-    """Statewide group x choice rate matrix from M2, fitted column by column."""
-    X = common.shares(df, dim)
+# ---------------------------------------------------------------- the contest-aware seed
+# A column's seed must be fitted only where that column was actually on the ballot, and on a
+# profile that describes the candidates behind it:
+#
+#   CONTEST  a coalition's column is structurally zero in every seat it did not contest (BN
+#            stood down from 23 of Johor's 56 duns at SE-16; in Negeri Sembilan BN and PN never
+#            met at SE-16, and BN and PH divided the seats at SE-15). Fitting its
+#            seed on those zeros mistakes a contest decision for behaviour and distorts the
+#            odds ratios carried into every seat it did contest. -> fit on contested seats.
+#   LOCAL    OTHER (and SE-16's BERSAMA) bundle different candidates in different seats -- in
+#            Negeri Sembilan, Berjasa in Nilai, PSM, ASLI, independents elsewhere -- so no statewide
+#            profile describes any one of them. There a statewide seed put Nilai's Berjasa vote (40% among
+#            near-pure Malay streams, 2% among near-pure non-Malay) onto Indian and Other
+#            voters, and raking, which preserves the seed's odds ratios, could not undo it.
+#            -> fit separately within each contested seat, on ethnicity only (the
+#            dimension a local candidate's appeal runs along, and few enough parameters for
+#            one seat's ~45 salurans), each joint cell taking its ethnicity's rate.
+#   the rest REJECTED / NOTRETURNED / NONVOTE are not contests: statewide, as before.
+#
+# Every column's seed then still feeds one rake per saluran onto both known margins, so the
+# bounds, exact totals and the rest of the method are unchanged.
+CONTEST = {"BN", "PH", "PN", "BERSAMA", "OTHER"}
+LOCAL = {"BERSAMA", "OTHER"}
+
+
+def contested(df, name):
+    """Salurans in seats (clusters) where column `name` received any vote."""
+    tot = df.groupby("cluster")[name].transform("sum").to_numpy()
+    return tot > 0
+
+
+SEEDS = ("candidate", "contest", "statewide")
+# see seatcheck.py for how the three compare; SALURAN_SEED overrides, for comparisons only
+SEED = __import__("os").environ.get("SALURAN_SEED", "candidate")
+
+
+def candidate_party(el):
+    """(seat, coalition column) -> the component party that stood there, e.g. BN -> MCA."""
+    c = common.cfg(el)
+    b = pd.read_parquet(c["ballots"]).query("state == @common.STATE")
+    b = b[b.coalition.isin(common.PARTIES)].drop_duplicates(["seat", "coalition"])
+    return {(r.seat, r.coalition): r.party for r in b.itertuples()}
+
+
+def seed_tables(df, el, X, M=None, link="logit", seed=None):
+    """Contest-aware seed. X: (n, G) row shares. M: (G, K) map from rows to the ethnic
+    groups a LOCAL column is fitted on (identity when the rows are themselves the groups to
+    use). Returns (per-saluran seed (n, G, C), statewide summary (G, C)); the summary is
+    only for the simulation studies, which plant one statewide truth.
+
+    seed: "candidate" (default) -- coalition columns are fitted per component party actually
+          standing (BN-UMNO and BN-MCA seats get different profiles), on contested seats only;
+          "contest" -- coalition columns fitted once over the seats they contested;
+          "statewide" -- the original: every column fitted on every saluran.
+    LOCAL columns are fitted per seat under both "candidate" and "contest"."""
+    seed = seed or SEED
+    assert seed in SEEDS, seed
     V = df.V.to_numpy(float)
-    CHOICES = common.choices(el)
-    seed = np.zeros((X.shape[1], len(CHOICES)))
-    for c, name in enumerate(CHOICES):
-        Y = df[name].to_numpy(float)
-        seed[:, c], _ = models.fit_link(X, Y, V, link)
-    return seed
+    CH = common.choices(el)
+    n, G = X.shape
+    M = np.eye(G) if M is None else M
+    XK = X @ M
+    seat = df.cluster.to_numpy()
+    cand = candidate_party(el) if seed == "candidate" else {}
+    S = np.full((n, G, len(CH)), SEED_FLOOR)
+    B = np.zeros((G, len(CH)))
+    for c, name in enumerate(CH):
+        y = df[name].to_numpy(float)
+        on = (contested(df, name) if (name in CONTEST and seed != "statewide")
+              else np.ones(n, bool))
+        if not on.any():
+            continue
+        b, _ = models.fit_link(X[on], y[on], V[on], link)
+        B[:, c] = b
+        if name in LOCAL and seed != "statewide":
+            for s in np.unique(seat[on]):
+                i = seat == s
+                bk, _ = models.fit_link(XK[i], y[i], V[i], link)
+                S[i, :, c] = M @ bk
+        elif name in common.PARTIES and seed == "candidate":
+            party = np.array([cand.get((st, name), "") for st in seat])
+            for p in np.unique(party[on]):
+                i = on & (party == p)
+                bp, _ = models.fit_link(X[i], y[i], V[i], link, start=np.log(b / (1 - b))
+                                        if link == "logit" else None)
+                S[i, :, c] = bp
+        else:
+            S[on, :, c] = b
+    return S, B
+
+
+MIN_SEAT_N = 30   # below this a seat's own cell count is too thin; fall back to statewide
+
+
+def seat_rates(per, N_fit, seats_fit, seats_target, el):
+    """Per-target-saluran group rates, read from the fit IN THE TARGET'S OWN SEAT.
+
+    per: (n_fit, G, C) raked tables of the fitted (mixed) salurans; N_fit: (n_fit, G) their
+    row counts. A held-out stream must be predicted with the rates of the contest it sat in --
+    under a stand-down, a statewide BN rate averages BN's own seats with seats where BN was
+    not on the ballot, which is the wrong prediction for any stream under any model. Falls
+    back to the statewide rate for a group thinner than MIN_SEAT_N in the seat's mixed set.
+    Returns {estimand: (n_target, G)}."""
+    CH = common.choices(el)
+    cols = {e: [CH.index(c) for c in common.estimands(el)[e]] for e in ESTIMAND_NAMES}
+    Tall, Nall = per.sum(axis=0), N_fit.sum(axis=0)
+    state = {e: Tall[:, cols[e]].sum(axis=1) / np.maximum(Nall, 1e-9) for e in ESTIMAND_NAMES}
+    out = {e: np.tile(state[e], (len(seats_target), 1)) for e in ESTIMAND_NAMES}
+    for s in np.unique(seats_target):
+        mf, mt = seats_fit == s, seats_target == s
+        if not mf.any():
+            continue
+        T, N = per[mf].sum(axis=0), N_fit[mf].sum(axis=0)
+        ok = N >= MIN_SEAT_N
+        for e in ESTIMAND_NAMES:
+            r = np.where(ok, T[:, cols[e]].sum(axis=1) / np.maximum(N, 1e-9), state[e])
+            out[e][mt] = r
+    return out
+
+
+def build_seed(df, el, dim, link="logit", seed=None):
+    """Per-saluran contest-aware seed for a one-dimension model (see seed_tables)."""
+    return seed_tables(df, el, common.shares(df, dim), link=link, seed=seed)[0]
+
+
+def statewide_seed(df, el, dim, link="logit"):
+    """The statewide G x C summary of the same fit -- a planted truth for simulations."""
+    return seed_tables(df, el, common.shares(df, dim), link=link)[1]
 
 
 def reconcile(df, el, dim, seed):

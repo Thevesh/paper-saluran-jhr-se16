@@ -32,7 +32,11 @@ import common
 
 BLUES = matplotlib.colormaps["Blues"]
 
-NOTE = "{\\footnotesize (point estimates without error bars are not citable)}\\par\\vspace{3pt}"
+NOTE = ("{\\footnotesize (\\textsf{d} = held-out discrepancy score, Section~\\ref{sec:strategy-errors}, not an interval; "
+        "point estimates without one are not citable)}\\par\\vspace{3pt}")
+JNOTE = ("{\\footnotesize (\\textsf{d} = discrepancy score from a DIRECT joint-cell holdout, "
+         "Section~\\ref{sec:strategy-jointcells}; cells without one are model-based only and "
+         "carry no cell-level claim)}\\par\\vspace{3pt}")
 
 
 def shade(rate, text):
@@ -56,6 +60,15 @@ VERR = (
     .set_index(["election", "group", "estimand"])
     .err.to_dict()
 )
+# Direct joint-cell discrepancy scores (jointholdout.py). A joint cell gets a bar ONLY if its
+# own near-pure stratum was held out and scored; marginal errors are never carried into a
+# cell, because cell errors can cancel inside either marginal (see the review note in
+# jointholdout.py).
+JERR = (
+    pd.read_csv(f"{common.OUT}/joint_validation_errors.csv")
+    .set_index(["election", "eth", "age", "estimand"])
+    .err_lower.to_dict()
+)
 
 
 def cell(rate, el, grp, est):
@@ -64,7 +77,7 @@ def cell(rate, el, grp, est):
     if err is None:
         return f"{100 * rate:.1f}"
     # Never print +/-0.0: an error too small to round to a tenth is still not zero.
-    bar = f"{{\\tiny$\\pm$}}{100 * err:.1f}" if 100 * err >= 0.05 else "{\\tiny$\\pm<$}0.1"
+    bar = f"{{\\tiny\\textsf{{d}}\\,}}{100 * err:.1f}" if 100 * err >= 0.05 else "{\\tiny\\textsf{d}\\,$<$}0.1"
     return shade(rate, f"{100 * rate:.1f}\\,{bar}")
 
 
@@ -123,12 +136,11 @@ def crosstab_table():
 
     def c(eth, age, est):
         r = jf[(jf.eth == eth) & (jf.age == age) & (jf.estimand == est)].iloc[0]
-        # A joint cell has no pure stratum of its own, so we carry the LARGER of its two
-        # marginal validation errors FOR THIS ESTIMAND -- a conservative proxy, stated as such.
-        errs = [VERR.get(("jhr_se16", eth, est)), VERR.get(("jhr_se16", age, est))]
-        if any(e is None for e in errs):
+        e = JERR.get(("jhr_se16", eth, age, est))
+        if e is None:
             return f"{100 * r.rate:.1f}"
-        return shade(r.rate, f"{100 * r.rate:.1f}\\,{{\\tiny$\\pm$}}{100 * max(errs):.1f}")
+        bar = f"{{\\tiny\\textsf{{d}}\\,}}{100 * e:.1f}" if 100 * e >= 0.05 else "{\\tiny\\textsf{d}\\,$<$}0.1"
+        return shade(r.rate, f"{100 * r.rate:.1f}\\,{bar}")
 
     blocks = []
     for est, name in [("turnout", "Turnout"), ("BN", "BN"), ("PH", "PH"), ("PN", "PN")]:
@@ -149,7 +161,7 @@ def crosstab_table():
     out = f"""\\begin{{table}}[!htb]
 \\caption{{{caption}}}
 \\label{{tab:joint}}
-\\centering{NOTE}
+\\centering{JNOTE}
 \\footnotesize\\setlength{{\\tabcolsep}}{{3.2pt}}
 \\begin{{tabular}}{{l{'c' * len(common.AGE)}}}
 \\toprule
@@ -188,7 +200,7 @@ def errors_table():
             lines.append(f"{head} & {short} & " + " & ".join(row) + " \\\\")
         lines.append("\\addlinespace[2pt]")
 
-    caption = "Held-out validation error by group, election and estimand, in percentage points"
+    caption = "Held-out discrepancy scores by group, election and estimand, in percentage points (lower envelope)"
     body = "\n".join(lines)
     out = f"""\\begin{{table}}[!htb]
 \\caption{{{caption}}}
@@ -314,25 +326,30 @@ def malay_crosstab_table():
     """Malay turnout and coalition support by age band, all three elections (tab_malay).
 
     Turnout is % of registered Malays in the band; the coalition panels are % of the
-    band's Malay voters (rate/turnout), the same voter scale as tab_results. Each cell
-    carries the conservative max of its two marginal validation errors, propagated for
-    the voter-scale panels exactly as in errors.py."""
+    band's Malay voters (rate/turnout), the same voter scale as tab_results. A cell carries
+    a bar only where its own joint stratum was held out (jointholdout.py); the voter-scale
+    panels propagate the cell's two direct scores exactly as in errors.py."""
     jf = pd.read_csv(f"{OUT}/joint_final.csv")
     jf = jf[jf.eth == "Malay"].set_index(["election", "age", "estimand"])
 
     def err(el, age, est):
-        return max(VERR[(el, "Malay", est)], VERR[(el, age, est)])
+        return JERR.get((el, "Malay", age, est))
 
     def cell_t(el, age):
         r = jf.loc[(el, age, "turnout")].rate
         e = err(el, age, "turnout")
-        return shade(r, f"{100 * r:.1f}\\,{{\\tiny$\\pm$}}{100 * e:.1f}")
+        if e is None:
+            return f"{100 * r:.1f}"
+        return shade(r, f"{100 * r:.1f}\\,{{\\tiny\\textsf{{d}}\\,}}{100 * e:.1f}")
 
     def cell_p(el, age, party):
         t = jf.loc[(el, age, "turnout")].rate
         v = jf.loc[(el, age, party)].rate / t
-        e = (err(el, age, party) + v * err(el, age, "turnout")) / t
-        return shade(v, f"{100 * v:.1f}\\,{{\\tiny$\\pm$}}{100 * e:.1f}")
+        ep, et = err(el, age, party), err(el, age, "turnout")
+        if ep is None or et is None:
+            return f"{100 * v:.1f}"
+        e = (ep + v * et) / t
+        return shade(v, f"{100 * v:.1f}\\,{{\\tiny\\textsf{{d}}\\,}}{100 * e:.1f}")
 
     blocks = []
     panels = [
@@ -354,7 +371,7 @@ def malay_crosstab_table():
     out = f"""\\begin{{table}}[!htb]
 \\caption{{{caption}}}
 \\label{{tab:malay}}
-\\centering
+\\centering{JNOTE}
 \\footnotesize\\setlength{{\\tabcolsep}}{{3.2pt}}
 \\begin{{tabular}}{{l{'c' * len(common.AGE)}}}
 \\toprule
@@ -418,6 +435,64 @@ def movements():
         print(f"  {a} vs {b}: {mv:.1f}pp against {s:.2f} (ratio {abs(mv) / s:.1f})")
 
 
+def claims_table():
+    """The claim ladder (tab_claims): for each headline contrast, what arithmetic alone
+    delivers (sharp LP bounds from contrasts.py, statewide and on PN-contested territory),
+    what the point model says, and the held-out discrepancy score combined across the two
+    elections. Assumption-free conclusions and model-dependent ones are thereby separated."""
+    C = pd.read_csv(f"{OUT}/contrast_bounds.csv")
+    marg = pd.read_csv(f"{OUT}/joint_marginals.csv").set_index(["election", "group", "estimand"]).rate
+
+    def pt(grp, est):
+        return 100 * (marg[("jhr_se16", grp, est)] - marg[("ge15", grp, est)])
+
+    def disc(grp, est):
+        return 100 * (E.err[("ge15", grp, est)] + E.err[("jhr_se16", grp, est)])
+
+    spec = [
+        ("Malay PN", "Malay", [("PN", 1)]),
+        ("Malay BN", "Malay", [("BN", 1)]),
+        ("Malay BN $-$ PN", "Malay", [("BN", 1), ("PN", -1)]),
+        ("Malay turnout", "Malay", [("turnout", 1)]),
+        ("Chinese PH", "Chinese", [("PH", 1)]),
+        ("Chinese turnout", "Chinese", [("turnout", 1)]),
+        ("Chinese BN", "Chinese", [("BN", 1)]),
+    ]
+    lines = []
+    for label, grp, terms in spec:
+        key = label.replace("$-$", "-")
+        rows = C[(C.claim == key) & (C.kind == "level")].set_index("territory")
+        sw, pn = rows.loc["statewide"], rows.loc["PN-contested 33 seats"]
+        p = sum(c * pt(grp, e) for e, c in terms)
+        d = sum(abs(c) * disc(grp, e) for e, c in terms)
+        signed = "yes" if (sw.change_lo > 0 or sw.change_hi < 0) else "no"
+        signed_pn = "yes" if (pn.change_lo > 0 or pn.change_hi < 0) else "no"
+        lines.append(
+            f"{label} & [{100*sw.change_lo:+.1f}, {100*sw.change_hi:+.1f}] & {signed} & "
+            f"[{100*pn.change_lo:+.1f}, {100*pn.change_hi:+.1f}] & {signed_pn} & "
+            f"{p:+.1f} & {d:.1f} \\\\")
+    body = "\n".join(lines)
+    out = f"""\\begin{{table}}[!htb]
+\\caption{{The claim ladder: GE-15 to SE-16 movements as shares of the group's electorate, in percentage points}}
+\\label{{tab:claims}}
+\\centering
+\\footnotesize\\setlength{{\\tabcolsep}}{{4pt}}
+\\begin{{tabular}}{{l cc cc cc}}
+\\toprule
+ & \\multicolumn{{2}}{{c}}{{Margins only, statewide}} & \\multicolumn{{2}}{{c}}{{Margins only, 33 PN seats}} & \\multicolumn{{2}}{{c}}{{Point model}} \\\\
+\\cmidrule(lr){{2-3}}\\cmidrule(lr){{4-5}}\\cmidrule(lr){{6-7}}
+Movement & sharp bound & signed? & sharp bound & signed? & estimate & discrepancy \\\\
+\\midrule
+{body}
+\\bottomrule
+\\end{{tabular}}\\par\\vspace{{3pt}}
+{{\\footnotesize Sharp bounds solve the transportation problem in every saluran (Section~\\ref{{sec:strategy-ladder}}); `signed' means the bound excludes zero. Discrepancy is the sum of the two elections' held-out scores (equation~\\ref{{eq:combine}}).}}
+\\end{{table}}
+"""
+    with open(f"{TEX}/tab_claims.tex", "w") as f:
+        f.write(out)
+
+
 if __name__ == "__main__":
     results_table()
     crosstab_table()
@@ -425,5 +500,6 @@ if __name__ == "__main__":
     bounds_table()
     m1_table()
     malay_crosstab_table()
+    claims_table()
     movements()
     print(f"wrote {TEX}/tab_results.tex, {TEX}/tab_crosstab.tex")
